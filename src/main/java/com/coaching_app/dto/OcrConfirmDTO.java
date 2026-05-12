@@ -2,7 +2,6 @@ package com.coaching_app.dto;
 
 import lombok.Data;
 
-// dto/OcrConfirmDTO.java
 @Data
 public class OcrConfirmDTO {
     private String title;

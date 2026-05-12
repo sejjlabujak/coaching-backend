@@ -137,6 +137,18 @@ public class DrillService {
         Drill saved = drillRepository.save(drill);
         return saved.getId();
     }
+
+    public int saveAllDrillsFromOcr(List<OcrConfirmDTO> drills) {
+        for (OcrConfirmDTO dto : drills) {
+            try {
+                saveDrillFromOcr(dto);
+            } catch (Exception e) {
+                System.out.println("Skipping drill due to error: " + dto.getTitle() + " - " + e.getMessage());
+            }
+        }
+        return drills.size();
+    }
+
     public Long createDrill(DrillDTO dto) {
         Drill drill = new Drill();
         drill.setTitle(dto.getTitle());
