@@ -24,4 +24,8 @@ public class TrainingDrill {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "session_id")
     private Session session;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "drill_id")
+    private Drill drill;
 }
