@@ -18,7 +18,7 @@ public class Player {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long playerID;
 
     @Column(nullable = false)
     private String firstName;
@@ -29,6 +29,11 @@ public class Player {
     private String position;
 
     private Integer jerseyNumber;
+    private Integer heightCm;
+    private Integer weightKg;
+    private String birthDate;
+    private String birthCity;
+    private String nationality;
 
     @Enumerated(EnumType.STRING)
     private AgeGroup ageGroup;

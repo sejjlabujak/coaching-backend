@@ -9,10 +9,10 @@ import java.util.List;
 @Repository
 public interface InjuryRepository extends JpaRepository<Injury, Long> {
 
-    List<Injury> findByPlayerId(Long playerId);
+    List<Injury> findByPlayerPlayerID(Long playerID);
 
     // Only currently active injuries for a player
-    List<Injury> findByPlayerIdAndIsActiveTrue(Long playerId);
+    List<Injury> findByPlayerPlayerIDAndIsActiveTrue(Long playerID);
 
     // All active injuries across all players (e.g. for a coach dashboard)
     List<Injury> findByIsActiveTrue();
