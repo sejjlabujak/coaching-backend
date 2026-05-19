@@ -20,6 +20,7 @@ public class FibaParserService {
 
     private final GameRepository gameRepository;
     private final FibaWidgetScraperService scraperService;
+    private final PlayerSyncService playerSyncService;
 
     // Team we are tracking — matches by name substring
     private static final String OUR_TEAM = "Play Off";
@@ -106,7 +107,33 @@ public class FibaParserService {
 
         Game saved = gameRepository.save(game);
         log.info("Saved game {} — {} {} vs {} {}", fibaId, team1Name, ourScore, opponentScore, result);
+
+        List<PlayerSyncService.FibaPlayerRef> fibaPlayers = collectPlayerRefs(ourTeamNode);
+        if (!fibaPlayers.isEmpty()) {
+            playerSyncService.syncPlayersFromGame(fibaPlayers);
+        }
         return saved;
+    }
+
+    private List<PlayerSyncService.FibaPlayerRef> collectPlayerRefs(JsonNode team) {
+        List<PlayerSyncService.FibaPlayerRef> refs = new ArrayList<>();
+        JsonNode players = team.path("pl");
+
+        players.fields().forEachRemaining(entry -> {
+            JsonNode p = entry.getValue();
+            String minutes = p.path("sMinutes").asText("0:00");
+            if (minutes.equals("0:00")) return; // skip DNPs
+
+            String firstName   = p.path("firstName").asText();
+            String familyName  = p.path("familyName").asText();
+            String shirtNumber = p.path("shirtNumber").asText();
+
+            if (!firstName.isBlank() || !familyName.isBlank()) {
+                refs.add(new PlayerSyncService.FibaPlayerRef(firstName, familyName, shirtNumber));
+            }
+        });
+
+        return refs;
     }
 
     // ── Parse team performance ────────────────────────────────────────────────

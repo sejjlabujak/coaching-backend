@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface ImageRepository extends JpaRepository<Image, Long> {
 
-    List<Image> findByPlayerId(Long playerId);
+    List<Image> findByPlayerPlayerID(Long playerID);
 
-    void deleteByPlayerId(Long playerId);
+    void deleteByPlayerPlayerID(Long playerID);
 }
