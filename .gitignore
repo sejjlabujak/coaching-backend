@@ -32,5 +32,5 @@ build/
 ### VS Code ###
 .vscode/
 
-src/main/resources/application.properties
-
+# Local development secrets (never commit)
+src/main/resources/application-local.properties
