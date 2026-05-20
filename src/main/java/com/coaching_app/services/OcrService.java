@@ -20,10 +20,12 @@ import java.util.concurrent.*;
 
 @Service
 public class OcrService {
-    @Value("${openrouter.api.key}")
+    @Value("${openrouter.api.key:}")
     private String openRouterApiKey;
 
-    private static final boolean USE_OPENROUTER = false;
+    // Feature toggle - prefer env var; default false (use Gemini)
+    @Value("${use.openrouter:false}")
+    private boolean useOpenRouter;
 
     @Value("${tesseract.data.path}")
     private String tessDataPath;
@@ -122,7 +124,7 @@ public class OcrService {
         List<OcrConfirmDTO> allDrills = new ArrayList<>();
         Set<String> seenTitles = new HashSet<>();
 
-        System.out.println(">>> Sending " + chunks.size() + " chunks to " + (USE_OPENROUTER ? "OpenRouter" : "Gemini") + "...");
+        System.out.println(">>> Sending " + chunks.size() + " chunks to " + (useOpenRouter ? "OpenRouter" : "Gemini") + "...");
 
         for (int i = 0; i < chunks.size(); i++) {
             System.out.println(">>> Processing chunk " + (i + 1) + "/" + chunks.size());
@@ -165,7 +167,7 @@ public class OcrService {
             HttpRequest request;
             HttpClient client = HttpClient.newHttpClient();
 
-            if (USE_OPENROUTER) {
+            if (useOpenRouter) {
                 requestBody = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
                     put("model", "meta-llama/llama-3.3-70b-instruct:free");
                     put("messages", List.of(new java.util.HashMap<>() {{
@@ -226,7 +228,7 @@ public class OcrService {
             }
 
             String content;
-            if (USE_OPENROUTER) {
+            if (useOpenRouter) {
                 JsonNode root = objectMapper.readTree(response.body());
                 content = root
                         .path("choices").get(0)
@@ -290,11 +292,10 @@ public class OcrService {
         return (n.isNull() || n.isMissingNode()) ? null : n.asText();
     }
 
-    // Tesseract factory
 
     private Tesseract buildTesseract() {
         Tesseract t = new Tesseract();
-        t.setDatapath("C:/Program Files/Tesseract-OCR/tessdata");
+        t.setDatapath(tessDataPath);
         t.setLanguage("eng");
         t.setPageSegMode(6);
         t.setOcrEngineMode(1);
