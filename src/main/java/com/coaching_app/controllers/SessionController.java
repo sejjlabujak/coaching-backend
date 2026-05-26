@@ -1,6 +1,5 @@
 package com.coaching_app.controllers;
 
-import com.coaching_app.dto.DrillDTO;
 import com.coaching_app.dto.ReuseSessionDTO;
 import com.coaching_app.dto.SessionDTO;
 import com.coaching_app.dto.SessionDetailDTO;
@@ -15,7 +14,6 @@ import java.util.Map;
 // controllers/SessionController.java
 @RestController
 @RequestMapping("/api/sessions")
-@CrossOrigin(origins = "http://localhost:4200")
 @RequiredArgsConstructor
 public class SessionController {
 
@@ -37,8 +35,11 @@ public class SessionController {
 
     // POST /api/session/{id}/reuse
     @PostMapping("/{id}/reuse")
-    public ResponseEntity<Map<String, Object>> reuseSession(@PathVariable Long id) {
-        Long newSessionId = sessionService.reuseSession(id);
+    public ResponseEntity<Map<String, Object>> reuseSession(
+            @PathVariable Long id,
+            @RequestBody(required = false) ReuseSessionDTO dto) {
+        String newDate = (dto != null && dto.getNewDate() != null) ? dto.getNewDate() : null;
+        Long newSessionId = sessionService.reuseSession(id, newDate);
         return ResponseEntity.ok(Map.of("newSessionId", newSessionId, "status", "Copied"));
     }
 

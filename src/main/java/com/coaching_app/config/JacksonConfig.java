@@ -14,6 +14,7 @@ public class JacksonConfig implements WebMvcConfigurer {
     public ObjectMapper objectMapper() {
         return new ObjectMapper();
     }
+
     @Value("${allowed.origins:http://localhost:4200}")
     private String allowedOrigins;
 
@@ -21,10 +22,9 @@ public class JacksonConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
                 .allowedOrigins(allowedOrigins.split(","))
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(false)
                 .maxAge(3600);
     }
 }
-
