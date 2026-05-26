@@ -1,44 +1,3 @@
-//package com.coaching_app.services;
-//
-//import com.coaching_app.dto.DrillDTO;
-//import com.coaching_app.dto.OcrConfirmDTO;
-//import com.coaching_app.repositories.DrillRepository;
-//import lombok.RequiredArgsConstructor;
-//import org.springframework.stereotype.Service;
-//
-//import java.util.List;
-//
-//// services/DrillService.java
-//@Service
-//@RequiredArgsConstructor
-//public class DrillService {
-//
-//    private final DrillRepository drillRepository;
-//
-//    public List<DrillDTO> getDrills(String focus, String search) {
-//        return null;
-//        // filter by focus and search, map to DTOs
-//    }
-//
-//    public DrillDTO getDrillById(Long id) {
-//        // find by id, map to DTO
-//        return null;
-//    }
-//
-//    public void updateDrill(Long id, DrillDTO dto) {
-//        // find, update fields, save
-//    }
-//
-//    public void deleteDrill(Long id) {
-//        // soft delete: drill.setDeleted(true)
-//    }
-//
-//    public Long saveDrillFromOcr(OcrConfirmDTO dto) {
-//        return null;
-//        // map to Drill entity, save, return id
-//    }
-//}
-
 package com.coaching_app.services;
 
 import com.coaching_app.dto.DrillDTO;
@@ -131,6 +90,9 @@ public class DrillService {
             drill.setAgeGroup(AgeGroup.valueOf(dto.getAgeGroup().trim().toUpperCase()));
         }
 
+        if (dto.getDuration() != null) {
+            drill.setDuration(dto.getDuration());
+        }
         drill.setLevel(dto.getLevel());
         drill.setEquipment(dto.getEquipment());
 
@@ -192,13 +154,6 @@ public class DrillService {
                 drill.getLevel(),
                 drill.getEquipment()
         );
-    }
-
-    private TrainingFocus parseFocus(String focus) {
-        if (!hasText(focus)) {
-            return null;
-        }
-        return TrainingFocus.valueOf(focus.trim().toUpperCase());
     }
 
     private String normalize(String value) {
