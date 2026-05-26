@@ -22,17 +22,16 @@ public class SessionService {
     private final SessionRepository sessionRepository;
     private final DrillRepository drillRepository;
 
-    /**
-     * Get all sessions for a given month/year
-     * If month/year are null, returns all sessions
-     */
     public List<SessionDTO> getSessions(Integer month, Integer year) {
         List<Session> sessions;
 
         if (month != null && year != null) {
             sessions = sessionRepository.findByMonthAndYear(month, year);
         } else {
-            sessions = sessionRepository.findAll();
+            sessions = sessionRepository.findAll()
+                    .stream()
+                    .filter(s -> !s.isDeleted())
+                    .toList();
         }
 
         return sessions.stream()
@@ -40,20 +39,13 @@ public class SessionService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Get full session details by ID
-     */
     public SessionDetailDTO getSessionById(Long id) {
         return sessionRepository.findById(id)
                 .map(this::convertToSessionDetailDTO)
                 .orElseThrow(() -> new RuntimeException("Session not found: " + id));
     }
 
-    /**
-     * Clone/Reuse a session: creates a new session with same drills
-     * For now, creates a copy with date = today
-     * Frontend can later modify the date in the Training Builder
-     */
+
     public Long reuseSession(Long sourceSessionId) {
         Session sourceSession = sessionRepository.findById(sourceSessionId)
                 .orElseThrow(() -> new RuntimeException("Session not found: " + sourceSessionId));
@@ -88,67 +80,21 @@ public class SessionService {
         return result.getId();
     }
 
-    /**
-     * Convert Session entity to SessionDTO (for calendar list)
-     */
-    private SessionDTO convertToSessionDTO(Session session) {
-        return new SessionDTO(
-                session.getId(),
-                session.getTitle(),
-                session.getDate().toString(),  // "2026-04-05"
-                session.getTime()
-        );
-    }
-
-    /**
-     * Convert Session entity to SessionDetailDTO (for modal/detail view)
-     */
-    private SessionDetailDTO convertToSessionDetailDTO(Session session) {
-        List<TrainingDrillDTO> drillDTOs = session.getDrills().stream()
-                .map(this::convertToTrainingDrillDTO)
-                .collect(Collectors.toList());
-
-        return new SessionDetailDTO(
-                session.getId(),
-                session.getTitle(),
-                session.getDate().toString(),
-                session.getDuration(),
-                session.getIntensity() != null ? session.getIntensity().toString() : null,
-                session.getFocus(),
-                session.getAgeGroup() != null ? session.getAgeGroup().toString() : null,
-                drillDTOs
-        );
-    }
-
-    /**
-     * Convert TrainingDrill entity to TrainingDrillDTO
-     */
-    private TrainingDrillDTO convertToTrainingDrillDTO(TrainingDrill drill) {
-        return new TrainingDrillDTO(
-                drill.getId(),
-                drill.getName(),
-                drill.getDuration(),
-                drill.getOrderIndex()
-        );
-    }
-
     public Long createSession(SessionDetailDTO dto) {
         Session session = new Session();
         session.setTitle(dto.getTitle());
         session.setDate(LocalDate.parse(dto.getDate()));
         session.setDuration(dto.getDuration());
-        session.setTime(null); // add later if your frontend sends time
+        session.setTime(dto.getTime() != null ? dto.getTime() : "00:00");
         session.setFocus(dto.getFocus());
 
         if (dto.getIntensity() != null) {
             session.setIntensity(com.coaching_app.enums.IntensityLevel.valueOf(dto.getIntensity().toUpperCase()));
         }
-
         if (dto.getAgeGroup() != null) {
             session.setAgeGroup(com.coaching_app.enums.AgeGroup.valueOf(dto.getAgeGroup().toUpperCase()));
         }
 
-        // Optional: leave color null for now unless your DTO includes it
         session.setColor(null);
 
         Session savedSession = sessionRepository.save(session);
@@ -160,13 +106,53 @@ public class SessionService {
                 drill.setDuration(drillDTO.getDuration());
                 drill.setOrderIndex(drillDTO.getOrderIndex());
                 drill.setSession(savedSession);
-
                 savedSession.getDrills().add(drill);
             }
         }
 
-        Session result = sessionRepository.save(savedSession);
-        return result.getId();
+        return sessionRepository.save(savedSession).getId();
     }
 
+    /** Soft delete — sets deletedAt, never removes from DB. */
+    public void deleteSession(Long id) {
+        Session session = sessionRepository.findActiveById(id)
+                .orElseThrow(() -> new RuntimeException("Session not found: " + id));
+        session.softDelete();
+        sessionRepository.save(session);
+    }
+    private SessionDTO convertToSessionDTO(Session session) {
+        return new SessionDTO(
+                session.getId(),
+                session.getTitle(),
+                session.getDate().toString(),
+                session.getTime()
+        );
+    }
+
+    private SessionDetailDTO convertToSessionDetailDTO(Session session) {
+        List<TrainingDrillDTO> drillDTOs = session.getDrills().stream()
+                .map(this::convertToTrainingDrillDTO)
+                .collect(Collectors.toList());
+
+        return new SessionDetailDTO(
+                session.getId(),
+                session.getTitle(),
+                session.getDate().toString(),
+                session.getTime(),
+                session.getDuration(),
+                session.getIntensity() != null ? session.getIntensity().toString() : null,
+                session.getFocus(),
+                session.getAgeGroup() != null ? session.getAgeGroup().toString() : null,
+                drillDTOs
+        );
+    }
+
+    private TrainingDrillDTO convertToTrainingDrillDTO(TrainingDrill drill) {
+        return new TrainingDrillDTO(
+                drill.getId(),
+                drill.getName(),
+                drill.getDuration(),
+                drill.getOrderIndex()
+        );
+    }
 }

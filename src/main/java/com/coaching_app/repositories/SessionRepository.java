@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 // repositories/SessionRepository.java
 @Repository
@@ -21,4 +22,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             @Param("month") Integer month,
             @Param("year") Integer year
     );
+
+    @Query("SELECT s FROM Session s WHERE s.id = :id AND s.deletedAt IS NULL")
+    Optional<Session> findActiveById(@Param("id") Long id);
 }

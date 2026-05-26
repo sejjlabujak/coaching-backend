@@ -1,7 +1,7 @@
 package com.coaching_app.controllers;
 
 import com.coaching_app.dto.PlayerStatsDTO;
-import com.coaching_app.services.PlayerStatService;
+import com.coaching_app.services.PlayerStatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,7 +14,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PlayerStatsController {
 
-    private final PlayerStatService playerStatsService;
+    private final PlayerStatsService playerStatsService;
 
     /**
      * GET /api/players/{id}/stats

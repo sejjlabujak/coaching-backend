@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-// dto/SessionDetailDTO.java  — used for /api/session/{id} GET
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -14,6 +13,7 @@ public class SessionDetailDTO {
     private Long id;
     private String title;
     private String date;
+    private String time;
     private Integer duration;
     private String intensity;
     private String focus;
