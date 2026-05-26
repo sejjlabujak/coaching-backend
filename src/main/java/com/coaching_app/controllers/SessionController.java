@@ -42,7 +42,7 @@ public class SessionController {
         return ResponseEntity.ok(Map.of("newSessionId", newSessionId, "status", "Copied"));
     }
 
-    // POST /api/sessions  — save new session from builder
+    // POST /api/sessions
     @PostMapping
     public ResponseEntity<Map<String, Object>> createSession(
             @RequestBody SessionDetailDTO dto) {
@@ -50,9 +50,9 @@ public class SessionController {
         return ResponseEntity.ok(Map.of("id", newId, "status", "Saved"));
     }
 
-    // GET /api/recommendation
-//    @GetMapping("/recommendation")
-//    public ResponseEntity<List<DrillDTO>> getRecommendations() {
-//        return ResponseEntity.ok(sessionService.getRecommendations());
-//    }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, String>> deleteSession(@PathVariable Long id) {
+        sessionService.deleteSession(id);
+        return ResponseEntity.ok(Map.of("status", "Deleted"));
+    }
 }

@@ -32,4 +32,14 @@ public class Injury {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "player_id", nullable = false)
     private Player player;
+
+    public void setIsActive(boolean active) {
+        this.isActive = active;
+        if (!active && this.endDate == null) {
+            this.endDate = LocalDate.now();
+        } else if (active) {
+            this.endDate = null;
+        }
+    }
 }
+
