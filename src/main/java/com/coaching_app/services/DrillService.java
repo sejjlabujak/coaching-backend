@@ -71,10 +71,10 @@ public class DrillService {
                 .toList();
     }
 
-//    public DrillDTO getDrillById(Long id) {
-//        Drill drill = findDrillById(id);
-//        return toDto(drill);
-//    }
+    public DrillDTO getDrillById(Long id) {
+        Drill drill = findDrillById(id);
+        return toDto(drill);
+    }
 
     public void updateDrill(Long id, DrillDTO dto) {
         Drill drill = findDrillById(id);

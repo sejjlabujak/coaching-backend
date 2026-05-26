@@ -46,14 +46,17 @@ public class SessionService {
     }
 
 
-    public Long reuseSession(Long sourceSessionId) {
+    public Long reuseSession(Long sourceSessionId, String newDate) {
         Session sourceSession = sessionRepository.findById(sourceSessionId)
                 .orElseThrow(() -> new RuntimeException("Session not found: " + sourceSessionId));
 
-        // Create new session with same properties
+        LocalDate date = (newDate != null && !newDate.isBlank())
+                ? LocalDate.parse(newDate)
+                : LocalDate.now();
+
         Session newSession = new Session();
         newSession.setTitle(sourceSession.getTitle());
-        newSession.setDate(LocalDate.now()); // Default to today; frontend adjusts
+        newSession.setDate(date);
         newSession.setTime(sourceSession.getTime());
         newSession.setDuration(sourceSession.getDuration());
         newSession.setIntensity(sourceSession.getIntensity());
@@ -61,23 +64,19 @@ public class SessionService {
         newSession.setAgeGroup(sourceSession.getAgeGroup());
         newSession.setColor(sourceSession.getColor());
 
-        // Save the new session first
         Session savedSession = sessionRepository.save(newSession);
 
-        // Clone all training drills
         sourceSession.getDrills().forEach(sourceDrill -> {
             TrainingDrill newDrill = new TrainingDrill();
             newDrill.setName(sourceDrill.getName());
             newDrill.setDuration(sourceDrill.getDuration());
             newDrill.setOrderIndex(sourceDrill.getOrderIndex());
+            newDrill.setDrill(sourceDrill.getDrill());   // preserve Drill FK
             newDrill.setSession(savedSession);
-
             savedSession.getDrills().add(newDrill);
         });
 
-        // Save the session again with drills
-        Session result = sessionRepository.save(savedSession);
-        return result.getId();
+        return sessionRepository.save(savedSession).getId();
     }
 
     public Long createSession(SessionDetailDTO dto) {

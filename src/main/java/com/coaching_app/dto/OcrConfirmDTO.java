@@ -11,4 +11,5 @@ public class OcrConfirmDTO {
     private String ageGroup;
     private String level;
     private String equipment;
+    private Integer duration;
 }

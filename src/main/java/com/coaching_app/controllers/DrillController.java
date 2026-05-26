@@ -12,7 +12,6 @@ import java.util.Map;
 // controllers/DrillController.java
 @RestController
 @RequestMapping("/api/drills")
-// @CrossOrigin(origins = "http://localhost:4200")
 @RequiredArgsConstructor
 public class DrillController {
 
@@ -27,10 +26,10 @@ public class DrillController {
     }
 
     // GET /api/drill/{id}
-//    @GetMapping("/{id}")
-//    public ResponseEntity<DrillDTO> getDrillById(@PathVariable Long id) {
-//        return ResponseEntity.ok(drillService.getDrillById(id));
-//    }
+    @GetMapping("/{id}")
+    public ResponseEntity<DrillDTO> getDrillById(@PathVariable Long id) {
+        return ResponseEntity.ok(drillService.getDrillById(id));
+    }
 
     // POST /api/drills
     @PostMapping
