@@ -40,10 +40,9 @@ public class OcrService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
 
-    public void processBytes(byte[] bytes, String contentType, String jobId) {
+    public List<OcrConfirmDTO> processBytesAndReturn(byte[] bytes, String contentType) {
         try {
             String rawText;
-
             if ("application/pdf".equals(contentType)) {
                 try (PDDocument document = PDDocument.load(bytes)) {
                     rawText = extractTextFromPdfParallel(document);
@@ -52,39 +51,11 @@ public class OcrService {
                 BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
                 rawText = buildTesseract().doOCR(image);
             }
-
-            List<OcrConfirmDTO> drills = extractAllDrillsWithGemini(rawText);
-
-            // Store drills for review
-            OcrJobStore.putDrills(jobId, drills);
-
-            // Store summary response so status endpoint knows we're done
-            OcrUploadResponseDTO summary = new OcrUploadResponseDTO(
-                    "Extraction Complete",
-                    drills.size() + " drills extracted",
-                    1.0,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null
-            );
-            OcrJobStore.put(jobId, summary);
-
+            return extractAllDrillsWithGemini(rawText);
         } catch (Exception e) {
-            // Store error so status endpoint returns something
-            OcrUploadResponseDTO error = new OcrUploadResponseDTO(
-                    "Error",
-                    "OCR processing failed: " + e.getMessage(),
-                    0.0,
-                    null, null, null, null, null, null
-            );
-            OcrJobStore.put(jobId, error);
             throw new RuntimeException("OCR processing failed: " + e.getMessage(), e);
         }
     }
-
     // Parallel PDF extraction
 
     private String extractTextFromPdfParallel(PDDocument document)

@@ -18,6 +18,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,6 +36,10 @@ public class RecommendationService {
 
     private static final String GEMINI_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
+
+    private List<RecommendationDTO> cachedRecommendations = null;
+    private LocalDateTime cacheTime = null;
+    private static final int CACHE_HOURS = 6;
 
     private static final String PROMPT_TEMPLATE = """
             You are an expert basketball coaching assistant analyzing team performance data from the last 4 games.
@@ -76,6 +81,10 @@ public class RecommendationService {
             """;
 
     public List<RecommendationDTO> getRecommendations() throws Exception {
+        if (isCacheValid()) {
+            log.info("Returning cached recommendations");
+            return cachedRecommendations;
+        }
         // 1. Fetch last 4 games with TeamPerformance
         List<Game> last4Games = gameRepository.findTop4ByOrderByDateDesc();
         if (last4Games.isEmpty()) {
@@ -96,26 +105,33 @@ public class RecommendationService {
 
         // 5. Call Gemini API with retry on 429
         String responseContent = callGeminiWithRetry(prompt, 3);
-
-        // 6. Parse response into List<RecommendationDTO>
-        return parseRecommendations(responseContent);
+        List<RecommendationDTO> result = parseRecommendations(responseContent);
+        cachedRecommendations = result;
+        cacheTime = LocalDateTime.now();
+        return result;
     }
 
-    // ── Format last 4 games as readable text ──────────────────────────────────
+    public void invalidateCache(){
+        cachedRecommendations = null;
+        cacheTime = null;
+    }
 
+    public boolean isCacheValid() {
+        return cachedRecommendations !=null
+                && cacheTime != null
+                && cacheTime.plusHours(CACHE_HOURS).isAfter(LocalDateTime.now());
+    }
+    // ── Format last 4 games as readable text ──────────────────────────────────
     private String formatGameData(List<Game> games) {
         StringBuilder sb = new StringBuilder();
         int gameNum = 1;
-
         for (Game game : games) {
             TeamPerformance tp = game.getTeamPerformance();
-
             sb.append("Game ").append(gameNum++).append(": ")
                     .append(game.getHomeTeam()).append(" vs ").append(game.getAwayTeam())
                     .append(" | Result: ").append(game.getResult())
                     .append(" (").append(game.getHomeScore()).append("-").append(game.getAwayScore()).append(")")
                     .append(" | Date: ").append(game.getDate()).append("\n");
-
             if (tp != null) {
                 sb.append("  Shooting: FG ").append(tp.getFieldGoalsMade()).append("/")
                         .append(tp.getFieldGoalsAttempted()).append(" (").append(tp.getFieldGoalsPercentage()).append("%)")
@@ -123,32 +139,24 @@ public class RecommendationService {
                         .append(tp.getThreePointersAttempted()).append(" (").append(tp.getThreePointersPercentage()).append("%)")
                         .append(", FT ").append(tp.getFreeThrowsMade()).append("/")
                         .append(tp.getFreeThrowsAttempted()).append(" (").append(tp.getFreeThrowsPercentage()).append("%)\n");
-
                 sb.append("  Rebounds: ").append(tp.getReboundsTotal())
                         .append(" (Off: ").append(tp.getReboundsOffensive())
                         .append(", Def: ").append(tp.getReboundsDefensive()).append(")\n");
-
                 sb.append("  Playmaking: Assists ").append(tp.getAssists())
                         .append(", Turnovers ").append(tp.getTurnovers())
                         .append(", Steals ").append(tp.getSteals())
                         .append(", Blocks ").append(tp.getBlocks()).append("\n");
-
                 sb.append("  Scoring: Points ").append(tp.getPoints())
                         .append(", FastBreak ").append(tp.getPointsFastBreak())
                         .append(", Paint ").append(tp.getPointsInThePaint())
                         .append(", FromTurnovers ").append(tp.getPointsFromTurnovers())
                         .append(", SecondChance ").append(tp.getPointsSecondChance())
                         .append(", Bench ").append(tp.getBenchPoints()).append("\n");
-
                 sb.append("  Fouls: ").append(tp.getFoulsPersonal())
                         .append(", BiggestLead: ").append(tp.getBiggestLead()).append("\n");
-            } else {
-                sb.append("  (No team performance data available)\n");
             }
-
             sb.append("\n");
         }
-
         return sb.toString();
     }
 

@@ -40,11 +40,10 @@ public class SessionService {
     }
 
     public SessionDetailDTO getSessionById(Long id) {
-        return sessionRepository.findById(id)
+        return sessionRepository.findActiveById(id)
                 .map(this::convertToSessionDetailDTO)
                 .orElseThrow(() -> new RuntimeException("Session not found: " + id));
     }
-
 
     public Long reuseSession(Long sourceSessionId, String newDate) {
         Session sourceSession = sessionRepository.findById(sourceSessionId)

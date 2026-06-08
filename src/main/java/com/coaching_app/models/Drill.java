@@ -32,7 +32,7 @@ public class Drill {
     @Enumerated(EnumType.STRING)
     private IntensityLevel intensity;
 
-    @Enumerated(EnumType.ORDINAL)
+    @Enumerated(EnumType.STRING)
     private AgeGroup ageGroup;
 
     private String tag;
