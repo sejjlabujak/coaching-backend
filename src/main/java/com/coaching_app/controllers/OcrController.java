@@ -3,7 +3,6 @@ package com.coaching_app.controllers;
 import com.coaching_app.dto.OcrConfirmDTO;
 import com.coaching_app.dto.OcrUploadResponseDTO;
 import com.coaching_app.services.DrillService;
-import com.coaching_app.services.OcrJobStore;
 import com.coaching_app.services.OcrService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -13,11 +12,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/drills")
-@CrossOrigin(origins = "http://localhost:4200")
 @RequiredArgsConstructor
 public class OcrController {
 
@@ -34,8 +31,7 @@ public class OcrController {
         boolean isImage = contentType != null && contentType.startsWith("image/");
 
         if (!isPdf && !isImage) {
-            throw new IllegalArgumentException(
-                    "Invalid file type. Please upload a PDF or image file.");
+            throw new IllegalArgumentException("Invalid file type. Please upload a PDF or image file.");
         }
 
         byte[] bytes;
@@ -45,34 +41,15 @@ public class OcrController {
             throw new RuntimeException("Could not read file", e);
         }
 
+        // Process synchronously — just wait for the result
+        List<OcrConfirmDTO> drills = ocrService.processBytesAndReturn(bytes, contentType);
+
         String jobId = java.util.UUID.randomUUID().toString();
-
-        CompletableFuture.runAsync(() -> {
-            ocrService.processBytes(bytes, contentType, jobId);
-        });
-
-        return ResponseEntity.accepted()
-                .body(Map.of("jobId", jobId, "status", "processing"));
-    }
-
-    // GET /api/drills/ocr-status/{jobId}
-    @GetMapping("/ocr-status/{jobId}")
-    public ResponseEntity<?> getOcrStatus(@PathVariable String jobId) {
-        OcrUploadResponseDTO result = OcrJobStore.get(jobId);
-        if (result == null) {
-            return ResponseEntity.accepted().body(Map.of("status", "processing"));
-        }
-        return ResponseEntity.ok(result);
-    }
-
-    // GET /api/drills/ocr-drills/{jobId} — get extracted drills list for review
-    @GetMapping("/ocr-drills/{jobId}")
-    public ResponseEntity<?> getExtractedDrills(@PathVariable String jobId) {
-        List<OcrConfirmDTO> drills = OcrJobStore.getDrills(jobId);
-        if (drills == null) {
-            return ResponseEntity.accepted().body(Map.of("status", "processing"));
-        }
-        return ResponseEntity.ok(drills);
+        return ResponseEntity.ok(Map.of(
+                "jobId", jobId,
+                "drills", drills,
+                "status", "done"
+        ));
     }
 
     // POST /api/drills/ocr-confirm-all

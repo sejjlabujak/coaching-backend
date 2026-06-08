@@ -101,14 +101,16 @@ public class DrillService {
     }
 
     public int saveAllDrillsFromOcr(List<OcrConfirmDTO> drills) {
+        int saved = 0;
         for (OcrConfirmDTO dto : drills) {
             try {
                 saveDrillFromOcr(dto);
+                saved++;
             } catch (Exception e) {
                 System.out.println("Skipping drill due to error: " + dto.getTitle() + " - " + e.getMessage());
             }
         }
-        return drills.size();
+        return saved;
     }
 
     public Long createDrill(DrillDTO dto) {

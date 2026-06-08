@@ -429,16 +429,16 @@ class DrillServiceTest {
 
         int count = drillService.saveAllDrillsFromOcr(List.of(dto1, dto2));
 
-        assertThat(count).isEqualTo(2);
+        assertThat(count).isEqualTo(2); // two valid drills, both saved
         verify(drillRepository, times(2)).save(any(Drill.class));
     }
 
     @Test
-    @DisplayName("saveAllDrillsFromOcr – one failing drill does not abort the rest")
+    @DisplayName("saveAllDrillsFromOcr – one failing drill is skipped, count reflects only saved drills")
     void saveAllDrillsFromOcr_oneInvalidDrill_skipsAndContinues() {
         OcrConfirmDTO bad = new OcrConfirmDTO();
         bad.setTitle("Bad Drill");
-        bad.setFocus("INVALID_ENUM_VALUE"); // will throw IllegalArgumentException
+        bad.setFocus("INVALID_ENUM_VALUE");
 
         OcrConfirmDTO good = new OcrConfirmDTO();
         good.setTitle("Good Drill");
@@ -446,13 +446,12 @@ class DrillServiceTest {
 
         Drill saved = new Drill();
         saved.setId(2L);
-        // Only the good drill reaches save(); bad one throws before that
         when(drillRepository.save(any(Drill.class))).thenReturn(saved);
 
         int count = drillService.saveAllDrillsFromOcr(List.of(bad, good));
 
-        assertThat(count).isEqualTo(2);            // returns full list size regardless
-        verify(drillRepository, times(1)).save(any()); // only the good one saved
+        assertThat(count).isEqualTo(1); // only the good one saved
+        verify(drillRepository, times(1)).save(any());
     }
 
     @Test

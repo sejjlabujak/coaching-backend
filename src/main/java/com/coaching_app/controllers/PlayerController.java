@@ -1,10 +1,11 @@
 package com.coaching_app.controllers;
 
+import com.coaching_app.dto.PlayerDTO;
+import com.coaching_app.dto.PlayerResponseDTO;
 import com.coaching_app.models.Player;
 import com.coaching_app.repositories.PlayerRepository;
 import com.coaching_app.services.PlayerSyncService;
 import com.coaching_app.services.PlayersScraperService;
-import com.coaching_app.dto.PlayerDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,24 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-/**
- * REST endpoints for player management and Eurobasket sync.
- *
- * POST /api/players/sync-roster
- *   Scrapes the current Eurobasket roster and tries to match every player
- *   against IndividualPerformance records already in the DB, then upserts
- *   Player entities.  Useful for an initial import or after a transfer window.
- *
- * GET /api/players/roster-preview
- *   Returns the raw scraped roster (without touching the DB) so you can
- *   preview what Eurobasket currently shows.
- *
- * GET /api/players
- *   Returns all Player entities saved in the database.
- */
 @RestController
 @RequestMapping("/api/players")
-@CrossOrigin(origins = "http://localhost:4200")
 @RequiredArgsConstructor
 public class PlayerController {
 
@@ -37,39 +22,23 @@ public class PlayerController {
     private final PlayersScraperService scraperService;
     private final PlayerSyncService playerSyncService;
 
-    // GET /api/players
     @GetMapping
-    public ResponseEntity<List<Player>> getAllPlayers() {
-        return ResponseEntity.ok(playerRepository.findAll());
+    public ResponseEntity<List<PlayerResponseDTO>> getAllPlayers() {
+        return ResponseEntity.ok(
+                playerRepository.findAll().stream()
+                        .map(this::toDto)
+                        .toList()
+        );
     }
 
-    /**
-     * GET /api/players/roster-preview
-     *
-     * Scrapes Eurobasket roster and returns the raw DTO list.
-     * Does NOT write anything to the database.
-     * Useful for debugging or verifying the scraper output.
-     */
     @GetMapping("/roster-preview")
     public ResponseEntity<List<PlayerDTO>> previewRoster() {
-        List<PlayerDTO> roster = scraperService.scrapeRoster();
-        return ResponseEntity.ok(roster);
+        return ResponseEntity.ok(scraperService.scrapeRoster());
     }
 
-    /**
-     * POST /api/players/sync-roster
-     *
-     * Full sync: scrapes the roster, then for each player on the roster
-     * builds a FibaPlayerRef from name tokens and calls the sync service.
-     * Call this manually after a transfer window or to do an initial import.
-     */
     @PostMapping("/sync-roster")
     public ResponseEntity<Map<String, Object>> syncRoster() {
         List<PlayerDTO> roster = scraperService.scrapeRoster();
-
-        // Convert roster DTOs to FibaPlayerRef so PlayerSyncService can process them.
-        // For a roster-driven sync the "FIBA game stats" come from the Eurobasket names,
-        // so we split fullName into firstName / familyName.
         List<PlayerSyncService.FibaPlayerRef> refs = roster.stream()
                 .filter(dto -> dto.getFullName() != null && dto.getFullName().contains(" "))
                 .map(dto -> {
@@ -77,13 +46,43 @@ public class PlayerController {
                     return new PlayerSyncService.FibaPlayerRef(parts[0], parts[1], null);
                 })
                 .toList();
-
         playerSyncService.syncPlayersFromGame(refs);
-
         return ResponseEntity.ok(Map.of(
                 "rosterSize", roster.size(),
                 "synced", refs.size(),
                 "status", "Done"
         ));
+    }
+
+    private PlayerResponseDTO toDto(Player p) {
+        List<PlayerResponseDTO.ImageDTO> images = p.getImages().stream()
+                .map(img -> new PlayerResponseDTO.ImageDTO(img.getImageID(), img.getUrl()))
+                .toList();
+
+        List<PlayerResponseDTO.InjuryResponseDTO> injuries = p.getInjuries().stream()
+                .map(inj -> new PlayerResponseDTO.InjuryResponseDTO(
+                        inj.getId(),
+                        inj.getDescription(),
+                        inj.getStartDate() != null ? inj.getStartDate().toString() : null,
+                        inj.getEndDate() != null ? inj.getEndDate().toString() : null,
+                        inj.isActive()
+                ))
+                .toList();
+
+        return new PlayerResponseDTO(
+                p.getPlayerID(),
+                p.getFirstName(),
+                p.getLastName(),
+                p.getPosition(),
+                p.getJerseyNumber(),
+                p.getHeightCm(),
+                p.getWeightKg(),
+                p.getBirthDate(),
+                p.getBirthCity(),
+                p.getNationality(),
+                p.getAgeGroup() != null ? p.getAgeGroup().name() : null,
+                images,
+                injuries
+        );
     }
 }

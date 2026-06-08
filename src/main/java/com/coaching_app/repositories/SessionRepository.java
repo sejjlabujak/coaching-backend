@@ -13,8 +13,8 @@ import java.util.Optional;
 // repositories/SessionRepository.java
 @Repository
 public interface SessionRepository extends JpaRepository<Session, Long> {
-
     @Query(value = "SELECT * FROM sessions WHERE " +
+            "deleted_at IS NULL AND " +
             "(:month IS NULL OR EXTRACT(MONTH FROM date) = :month) AND " +
             "(:year IS NULL OR EXTRACT(YEAR FROM date) = :year)",
             nativeQuery = true)

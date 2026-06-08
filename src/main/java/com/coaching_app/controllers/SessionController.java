@@ -30,7 +30,11 @@ public class SessionController {
     // GET /api/session/{id}
     @GetMapping("/{id}")
     public ResponseEntity<SessionDetailDTO> getSessionById(@PathVariable Long id) {
-        return ResponseEntity.ok(sessionService.getSessionById(id));
+        try {
+            return ResponseEntity.ok(sessionService.getSessionById(id));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     // POST /api/session/{id}/reuse
