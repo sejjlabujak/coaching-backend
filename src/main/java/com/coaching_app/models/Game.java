@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
-
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,8 +18,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-
-@ToString(exclude = {"teamPerformance", "individualStats"})
+@ToString
 public class Game {
 
     @Id
@@ -36,11 +34,23 @@ public class Game {
     private LocalDate date;
     private String competition;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "home_team_id")
+    @ToString.Exclude
+    private Team homeTeamRef;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "away_team_id")
+    @ToString.Exclude
+    private Team awayTeamRef;
+
+    @ToString.Exclude
     @OneToOne(mappedBy = "game", cascade = CascadeType.ALL)
     private TeamPerformance teamPerformance;
-    @JsonManagedReference
 
+    @JsonManagedReference
     @JsonIgnore
+    @ToString.Exclude
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL)
     private List<IndividualPerformance> individualStats = new ArrayList<>();
 }

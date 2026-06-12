@@ -15,14 +15,19 @@ import java.util.Optional;
 public interface SessionRepository extends JpaRepository<Session, Long> {
     @Query(value = "SELECT * FROM sessions WHERE " +
             "deleted_at IS NULL AND " +
+            "user_id = :userId AND " +
             "(:month IS NULL OR EXTRACT(MONTH FROM date) = :month) AND " +
             "(:year IS NULL OR EXTRACT(YEAR FROM date) = :year)",
             nativeQuery = true)
     List<Session> findByMonthAndYear(
+            @Param("userId") Long userId,
             @Param("month") Integer month,
             @Param("year") Integer year
     );
 
     @Query("SELECT s FROM Session s WHERE s.id = :id AND s.deletedAt IS NULL")
     Optional<Session> findActiveById(@Param("id") Long id);
+
+    @Query("SELECT s FROM Session s WHERE s.deletedAt IS NULL AND s.user.id = :userId AND s.date = :date")
+    List<Session> findActiveByUserAndDate(@Param("userId") Long userId, @Param("date") LocalDate date);
 }

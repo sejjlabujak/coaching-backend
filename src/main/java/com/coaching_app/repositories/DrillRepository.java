@@ -39,10 +39,12 @@ public interface DrillRepository extends JpaRepository<Drill, Long> {
     List<Drill> findByDeletedFalse();
 
     @Query(value = "SELECT * FROM drills d WHERE d.deleted = false AND " +
+            "d.user_id = :userId AND " +
             "(:focus IS NULL OR d.focus = :focus) AND " +
             "(:search IS NULL OR d.title ILIKE CONCAT('%', :search, '%'))",
             nativeQuery = true)
     List<Drill> findFiltered(
+            @Param("userId") Long userId,
             @Param("focus") String focus,
             @Param("search") String search
     );

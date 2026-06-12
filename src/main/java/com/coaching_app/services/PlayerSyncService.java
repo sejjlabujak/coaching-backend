@@ -3,6 +3,7 @@ package com.coaching_app.services;
 import com.coaching_app.dto.PlayerDTO;
 import com.coaching_app.models.Image;
 import com.coaching_app.models.Player;
+import com.coaching_app.models.User;
 import com.coaching_app.repositories.ImageRepository;
 import com.coaching_app.repositories.PlayerStatsRepository;
 import com.coaching_app.repositories.PlayerRepository;
@@ -26,9 +27,19 @@ public class PlayerSyncService {
     private final PlayerStatsRepository individualStatRepository;
 
     public void syncPlayersFromGame(List<FibaPlayerRef> fibaPlayers) {
+        syncPlayersFromGame(fibaPlayers, null);
+    }
+
+    public void syncPlayersFromGame(List<FibaPlayerRef> fibaPlayers, User coachUser) {
         log.info("Starting player sync for {} FIBA players", fibaPlayers.size());
 
-        List<PlayerDTO> roster = scraperService.scrapeRoster();
+        String rosterUrl = (coachUser != null && coachUser.getTeam() != null)
+                ? coachUser.getTeam().getRosterUrl()
+                : null;
+        List<PlayerDTO> roster = rosterUrl != null
+                ? scraperService.scrapeRoster(rosterUrl)
+                : scraperService.scrapeRoster();
+
         if (roster.isEmpty()) {
             log.warn("Eurobasket roster is empty — skipping player sync");
             return;
@@ -44,7 +55,7 @@ public class PlayerSyncService {
                 }
 
                 scraperService.scrapeProfile(match);
-                upsertPlayer(fibaPlayer, match);
+                upsertPlayer(fibaPlayer, match, coachUser);
 
             } catch (Exception e) {
                 log.warn("Error syncing player {} {}: {}",
@@ -53,6 +64,25 @@ public class PlayerSyncService {
         }
 
         log.info("Player sync complete");
+    }
+
+    @Transactional
+    public void syncRosterForCoach(User coachUser) {
+        if (coachUser == null || coachUser.getTeam() == null || coachUser.getTeam().getRosterUrl() == null) {
+            log.warn("Cannot sync roster: coach or coach's team is not set");
+            return;
+        }
+
+        List<PlayerDTO> roster = scraperService.scrapeRoster(coachUser.getTeam().getRosterUrl());
+        List<FibaPlayerRef> refs = roster.stream()
+                .filter(dto -> dto.getFullName() != null && dto.getFullName().contains(" "))
+                .map(dto -> {
+                    String[] parts = dto.getFullName().trim().split("\\s+", 2);
+                    return new FibaPlayerRef(parts[0], parts[1], null);
+                })
+                .toList();
+
+        syncPlayersFromGame(refs, coachUser);
     }
 
     // ── Matching ──────────────────────────────────────────────────────────────
@@ -83,6 +113,11 @@ public class PlayerSyncService {
 
     @Transactional
     public void upsertPlayer(FibaPlayerRef fiba, PlayerDTO dto) {
+        upsertPlayer(fiba, dto, null);
+    }
+
+    @Transactional
+    public void upsertPlayer(FibaPlayerRef fiba, PlayerDTO dto, User coachUser) {
         Optional<Player> existing = Optional.empty();
 
         if (dto.getPlayerID() != null) {
@@ -99,6 +134,10 @@ public class PlayerSyncService {
 
         player.setFirstName(fiba.firstName());
         player.setLastName(fiba.familyName());
+
+        if (coachUser != null) {
+            player.setUser(coachUser);
+        }
 
         if (fiba.shirtNumber() != null && !fiba.shirtNumber().isBlank()) {
             try {

@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 @Service
 public class PlayersScraperService {
 
-    private static final String ROSTER_URL =
+    private static final String DEFAULT_ROSTER_URL =
             "https://basketball.eurobasket.com/team/ZKK-Play-Off-Happy-Sarajevo/18179/Roster?Women=1";
 
     private static final String BASE_URL = "https://basketball.eurobasket.com";
@@ -36,11 +36,15 @@ public class PlayersScraperService {
             Pattern.compile("born on .+? in ([^(.,]+?)\\s*(?:\\(|\\.|,|$)");
 
     public List<PlayerDTO> scrapeRoster() {
+        return scrapeRoster(DEFAULT_ROSTER_URL);
+    }
+
+    public List<PlayerDTO> scrapeRoster(String rosterUrl) {
         List<PlayerDTO> players = new ArrayList<>();
 
         Document doc;
         try {
-            doc = Jsoup.connect(ROSTER_URL)
+            doc = Jsoup.connect(rosterUrl)
                     .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
                             "(KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36")
                     .timeout(15_000)
@@ -50,24 +54,17 @@ public class PlayersScraperService {
             return players;
         }
 
-        // Build a map of playerUrl -> photoUrl from the top thumbnail table
-        // The top table (#tableCoach) has <a href="/player/..."><img src="..."></a>
-        java.util.Map<String, String> photoMap = new java.util.HashMap<>();
-        for (Element link : doc.select("#tableCoach a[href*=/player/]")) {
-            String href = normalizeHref(link.attr("href"));
-            Element img = link.selectFirst("img");
-            if (img != null && href != null) {
-                photoMap.put(href, absoluteUrl(img.attr("src")));
-            }
+        String rowSelector = "div.ArRosterplayer.clssenior, div.ArRosterplayer.clsboth";
+        Elements rows = doc.select(rowSelector);
+        if (rows.isEmpty()) {
+            log.warn("Found 0 roster rows with selector '{}' — page structure may have changed again", rowSelector);
+        } else {
+            log.info("Found {} roster rows on Eurobasket", rows.size());
         }
-
-        // Select both senior and dual-registered rows
-        Elements rows = doc.select("tr.clssenior, tr.clsboth");
-        log.info("Found {} roster rows on Eurobasket", rows.size());
 
         for (Element row : rows) {
             try {
-                PlayerDTO dto = parseRosterRow(row, photoMap);
+                PlayerDTO dto = parseRosterRow(row);
                 if (dto != null) {
                     players.add(dto);
                     log.debug("Parsed roster player: {} (id={})", dto.getFullName(), dto.getPlayerID());
@@ -150,54 +147,54 @@ public class PlayersScraperService {
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
-    private PlayerDTO parseRosterRow(Element row,
-                                               java.util.Map<String, String> photoMap) {
-        // Player link and name
-        Element playerLink = row.selectFirst("a[href*=/player/]");
-        if (playerLink == null) return null;
+    private PlayerDTO parseRosterRow(Element row) {
+        // Primary data from data-* attributes
+        String fullName = row.attr("data-rname").trim();
+        String playerIdStr = row.attr("data-playerid").trim();
 
-        String href = playerLink.attr("href");
-        Integer eurobasketId = extractPlayerId(href);
-        if (eurobasketId == null) return null;
-
-        // Prefer the desktop span, fall back to link text
-        Element nameSpan = playerLink.selectFirst(".spnplnamedesktop");
-        String fullName = nameSpan != null ? nameSpan.text().trim() : playerLink.text().trim();
+        // Fall back to link text if data-rname is absent
+        if (fullName.isEmpty()) {
+            Element nameLink = row.selectFirst(".ArRostername a[href*=/player/]");
+            if (nameLink != null) fullName = nameLink.text().trim();
+        }
         if (fullName.isEmpty()) return null;
 
-        String profileUrl = normalizeHref(href);
-
-        // Height: td.tdhightcls data-order attribute
-        Element heightTd = row.selectFirst("td.tdhightcls");
-        Integer heightCm = null;
-        if (heightTd != null) {
-            String dataOrder = heightTd.attr("data-order");
+        Integer eurobasketId = null;
+        if (!playerIdStr.isEmpty()) {
             try {
-                int h = Integer.parseInt(dataOrder);
+                eurobasketId = Integer.parseInt(playerIdStr);
+            } catch (NumberFormatException ignored) {}
+        }
+        if (eurobasketId == null) return null;
+
+        // Profile URL from the anchor inside .ArRostername
+        String profileUrl = null;
+        Element nameLink = row.selectFirst(".ArRostername a[href*=/player/]");
+        if (nameLink != null) {
+            profileUrl = normalizeHref(nameLink.attr("href"));
+        }
+
+        Integer heightCm = null;
+        String heightStr = row.attr("data-rheight").trim();
+        if (!heightStr.isEmpty()) {
+            try {
+                int h = Integer.parseInt(heightStr);
                 heightCm = h > 0 ? h : null;
             } catch (NumberFormatException ignored) {}
         }
 
-       String position = null;
-        Elements centerTds = row.select("td[align=center]");
-        for (Element td : centerTds) {
-            // Skip the nationality td (it contains an img, not plain text)
-            if (td.selectFirst("img") != null) continue;
-            String text = td.text().trim();
-            // Position values: G, SG, F, C, F/C etc. — short and alphabetic
-            if (!text.isEmpty() && text.length() <= 5 && text.matches("[A-Z/]+")) {
-                position = text;
-                break;
-            }
-        }
+        String position = row.attr("data-rpos").trim();
+        if (position.isEmpty()) position = null;
 
-        String nationality = null;
-        Element natImg = row.selectFirst("td.tdrsimg img");
-        if (natImg != null) {
-            nationality = natImg.attr("alt");
-        }
+        String nationality = row.attr("data-rnat").trim();
+        if (nationality.isEmpty()) nationality = null;
 
-        String imageUrl = photoMap.get(profileUrl);
+        // Photo: look for a eurobasket photos image inside the row; leave null if absent
+        String imageUrl = null;
+        Element photoImg = row.selectFirst("img[src*=eurobasket.com/photos/]");
+        if (photoImg != null) {
+            imageUrl = absoluteUrl(photoImg.attr("src"));
+        }
 
         PlayerDTO dto = new PlayerDTO();
         dto.setFullName(fullName);

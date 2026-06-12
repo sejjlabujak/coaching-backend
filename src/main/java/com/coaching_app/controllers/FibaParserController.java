@@ -59,4 +59,14 @@ public class FibaParserController {
     public ResponseEntity<List<Game>> getLast4() {
         return ResponseEntity.ok(gameRepository.findTop4ByOrderByDateDesc());
     }
+
+    // Backfill Team FKs on all existing games
+    @PostMapping("/relink-teams")
+    public ResponseEntity<Map<String, Object>> relinkTeams() {
+        int[] result = parserService.relinkAllGames();
+        return ResponseEntity.ok(Map.of(
+                "relinked", result[0],
+                "unmatched", result[1]
+        ));
+    }
 }

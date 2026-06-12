@@ -14,7 +14,6 @@ public class DrillDTO {
     private String description;
     private String focus;
     private String intensity;
-    private String ageGroup;
     private String tag;
     private Integer duration;
     private String level;

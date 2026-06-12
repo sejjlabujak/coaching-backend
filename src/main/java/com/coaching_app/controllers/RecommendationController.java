@@ -1,13 +1,18 @@
 package com.coaching_app.controllers;
 
 import com.coaching_app.dto.RecommendationDTO;
+import com.coaching_app.models.User;
+import com.coaching_app.repositories.UserRepository;
 import com.coaching_app.services.RecommendationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.async.DeferredResult;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
@@ -17,30 +22,25 @@ import java.util.concurrent.CompletableFuture;
 public class RecommendationController {
 
     private final RecommendationService recommendationService;
+    private final UserRepository userRepository;
 
     @GetMapping
-    public DeferredResult<ResponseEntity<List<RecommendationDTO>>> getRecommendations() {
-        DeferredResult<ResponseEntity<List<RecommendationDTO>>> result =
-                new DeferredResult<>(120_000L);
+    public ResponseEntity<?> getRecommendations(Authentication auth) {
+        if (auth == null || !(auth.getPrincipal() instanceof User user)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
 
-        result.onTimeout(() -> result.setErrorResult(
-                ResponseEntity.status(503).body("Request timed out. Please try again later.")
-        ));
+        User fresh = userRepository.findById(user.getId()).orElse(null);
+        if (fresh == null || fresh.getTeam() == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No team assigned"));
+        }
 
-        CompletableFuture.supplyAsync(() -> {
-            try {
-                return recommendationService.getRecommendations();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }).thenAccept(recommendations ->
-                result.setResult(ResponseEntity.ok(recommendations))
-        ).exceptionally(ex -> {
-            result.setErrorResult(ResponseEntity.internalServerError().build());
-            return null;
-        });
-
-        return result;
+        try {
+            List<RecommendationDTO> recommendations = recommendationService.getRecommendationsForCoach(fresh);
+            return ResponseEntity.ok(recommendations);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/invalidate-cache")

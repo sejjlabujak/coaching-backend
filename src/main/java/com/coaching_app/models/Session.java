@@ -45,6 +45,9 @@ public class Session {
 
     private String focus;
 
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
     private LocalDateTime deletedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -57,6 +60,10 @@ public class Session {
 
     public boolean isDeleted() {
         return deletedAt != null;
+    }
+
+    public boolean isPast() {
+        return date != null && date.isBefore(LocalDate.now());
     }
 
     public void softDelete() {

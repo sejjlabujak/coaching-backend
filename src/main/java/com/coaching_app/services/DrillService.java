@@ -2,10 +2,10 @@ package com.coaching_app.services;
 
 import com.coaching_app.dto.DrillDTO;
 import com.coaching_app.dto.OcrConfirmDTO;
-import com.coaching_app.enums.AgeGroup;
 import com.coaching_app.enums.IntensityLevel;
 import com.coaching_app.enums.TrainingFocus;
 import com.coaching_app.models.Drill;
+import com.coaching_app.models.User;
 import com.coaching_app.repositories.DrillRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,13 +18,13 @@ public class DrillService {
 
     private final DrillRepository drillRepository;
 
-    public List<DrillDTO> getDrills(String focus, String search) {
+    public List<DrillDTO> getDrills(String focus, String search, User user) {
         String normalizedFocus = hasText(focus)
                 ? focus.trim().toUpperCase().replace(" ", "_")
                 : null;
         String normalizedSearch = normalize(search);
 
-        return drillRepository.findFiltered(normalizedFocus, normalizedSearch)
+        return drillRepository.findFiltered(user.getId(), normalizedFocus, normalizedSearch)
                 .stream()
                 .map(this::toDto)
                 .toList();
@@ -50,9 +50,6 @@ public class DrillService {
         if (dto.getIntensity() != null) {
             drill.setIntensity(IntensityLevel.valueOf(dto.getIntensity().trim().toUpperCase()));
         }
-        if (dto.getAgeGroup() != null) {
-            drill.setAgeGroup(AgeGroup.valueOf(dto.getAgeGroup().trim().toUpperCase()));
-        }
         if (dto.getTag() != null) {
             drill.setTag(dto.getTag());
         }
@@ -75,7 +72,7 @@ public class DrillService {
         drillRepository.save(drill);
     }
 
-    public Long saveDrillFromOcr(OcrConfirmDTO dto) {
+    public Long saveDrillFromOcr(OcrConfirmDTO dto, User user) {
         Drill drill = new Drill();
         drill.setTitle(dto.getTitle());
         drill.setDescription(dto.getDescription());
@@ -86,25 +83,23 @@ public class DrillService {
         if (dto.getIntensity() != null) {
             drill.setIntensity(IntensityLevel.valueOf(dto.getIntensity().trim().toUpperCase()));
         }
-        if (dto.getAgeGroup() != null) {
-            drill.setAgeGroup(AgeGroup.valueOf(dto.getAgeGroup().trim().toUpperCase()));
-        }
 
         if (dto.getDuration() != null) {
             drill.setDuration(dto.getDuration());
         }
         drill.setLevel(dto.getLevel());
         drill.setEquipment(dto.getEquipment());
+        drill.setUser(user);
 
         Drill saved = drillRepository.save(drill);
         return saved.getId();
     }
 
-    public int saveAllDrillsFromOcr(List<OcrConfirmDTO> drills) {
+    public int saveAllDrillsFromOcr(List<OcrConfirmDTO> drills, User user) {
         int saved = 0;
         for (OcrConfirmDTO dto : drills) {
             try {
-                saveDrillFromOcr(dto);
+                saveDrillFromOcr(dto, user);
                 saved++;
             } catch (Exception e) {
                 System.out.println("Skipping drill due to error: " + dto.getTitle() + " - " + e.getMessage());
@@ -113,7 +108,7 @@ public class DrillService {
         return saved;
     }
 
-    public Long createDrill(DrillDTO dto) {
+    public Long createDrill(DrillDTO dto, User user) {
         Drill drill = new Drill();
         drill.setTitle(dto.getTitle());
         drill.setDescription(dto.getDescription());
@@ -124,14 +119,12 @@ public class DrillService {
         if (dto.getIntensity() != null) {
             drill.setIntensity(IntensityLevel.valueOf(dto.getIntensity().trim().toUpperCase()));
         }
-        if (dto.getAgeGroup() != null) {
-            drill.setAgeGroup(AgeGroup.valueOf(dto.getAgeGroup().trim().toUpperCase()));
-        }
 
         drill.setTag(dto.getTag());
         drill.setDuration(dto.getDuration());
         drill.setLevel(dto.getLevel());
         drill.setEquipment(dto.getEquipment());
+        drill.setUser(user);
 
         Drill saved = drillRepository.save(drill);
         return saved.getId();
@@ -150,7 +143,6 @@ public class DrillService {
                 drill.getDescription(),
                 drill.getFocus() != null ? drill.getFocus().name() : null,
                 drill.getIntensity() != null ? drill.getIntensity().name() : null,
-                drill.getAgeGroup() != null ? drill.getAgeGroup().name() : null,
                 drill.getTag(),
                 drill.getDuration(),
                 drill.getLevel(),
