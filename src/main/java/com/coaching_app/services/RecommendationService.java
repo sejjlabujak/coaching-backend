@@ -5,6 +5,7 @@ import com.coaching_app.dto.RecommendedDrillDTO;
 import com.coaching_app.models.Drill;
 import com.coaching_app.models.Game;
 import com.coaching_app.models.TeamPerformance;
+import com.coaching_app.models.User;
 import com.coaching_app.repositories.DrillRepository;
 import com.coaching_app.repositories.GameRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -20,7 +21,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -37,8 +40,14 @@ public class RecommendationService {
     private static final String GEMINI_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
 
+    // Global fallback cache (keyed to null)
     private List<RecommendationDTO> cachedRecommendations = null;
     private LocalDateTime cacheTime = null;
+
+    // Per-team cache
+    private record CachedEntry(List<RecommendationDTO> data, LocalDateTime time) {}
+    private final Map<Long, CachedEntry> teamCache = new HashMap<>();
+
     private static final int CACHE_HOURS = 6;
 
     private static final String PROMPT_TEMPLATE = """
@@ -111,13 +120,40 @@ public class RecommendationService {
         return result;
     }
 
-    public void invalidateCache(){
+    public List<RecommendationDTO> getRecommendationsForCoach(User coach) throws Exception {
+        Long teamId = coach.getTeam() != null ? coach.getTeam().getId() : null;
+        if (teamId == null) throw new RuntimeException("Coach has no team assigned");
+
+        CachedEntry entry = teamCache.get(teamId);
+        if (entry != null && entry.time().plusHours(CACHE_HOURS).isAfter(LocalDateTime.now())) {
+            log.info("Returning cached recommendations for team {}", teamId);
+            return entry.data();
+        }
+
+        List<Game> last4Games = gameRepository.findTop4ByTeamIdOrderByDateDesc(teamId);
+        if (last4Games.isEmpty()) {
+            throw new RuntimeException("No games found for team " + teamId);
+        }
+
+        List<Drill> drills = drillRepository.findByDeletedFalse();
+        String prompt = PROMPT_TEMPLATE
+                .replace("{GAME_DATA}", formatGameData(last4Games))
+                .replace("{DRILL_DATA}", formatDrillData(drills));
+
+        String responseContent = callGeminiWithRetry(prompt, 3);
+        List<RecommendationDTO> result = parseRecommendations(responseContent);
+        teamCache.put(teamId, new CachedEntry(result, LocalDateTime.now()));
+        return result;
+    }
+
+    public void invalidateCache() {
         cachedRecommendations = null;
         cacheTime = null;
+        teamCache.clear();
     }
 
     public boolean isCacheValid() {
-        return cachedRecommendations !=null
+        return cachedRecommendations != null
                 && cacheTime != null
                 && cacheTime.plusHours(CACHE_HOURS).isAfter(LocalDateTime.now());
     }
@@ -170,8 +206,7 @@ public class RecommendationService {
                     .append(" | Title: ").append(drill.getTitle())
                     .append(" | Focus: ").append(drill.getFocus() != null ? drill.getFocus().name() : "N/A")
                     .append(" | Intensity: ").append(drill.getIntensity() != null ? drill.getIntensity().name() : "N/A")
-                    .append(" | Level: ").append(drill.getLevel() != null ? drill.getLevel() : "N/A")
-                    .append(" | AgeGroup: ").append(drill.getAgeGroup() != null ? drill.getAgeGroup().name() : "N/A");
+                    .append(" | Level: ").append(drill.getLevel() != null ? drill.getLevel() : "N/A");
 
             if (drill.getDescription() != null && !drill.getDescription().isBlank()) {
                 String shortDesc = drill.getDescription().length() > 120

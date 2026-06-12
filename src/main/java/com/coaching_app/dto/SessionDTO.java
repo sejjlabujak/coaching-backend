@@ -13,4 +13,6 @@ public class SessionDTO {
     private String title;
     private String date;   // "2026-04-05"
     private String time;
+    private Integer duration;
+    private Boolean readOnly;
 }

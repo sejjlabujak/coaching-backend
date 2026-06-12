@@ -232,7 +232,6 @@ public class OcrService {
                     dto.setDescription(nullableText(drillNode, "description"));
                     dto.setFocus(nullableText(drillNode, "focus"));
                     dto.setIntensity(nullableText(drillNode, "intensity"));
-                    dto.setAgeGroup(nullableText(drillNode, "ageGroup"));
                     dto.setLevel(nullableText(drillNode, "level"));
                     dto.setEquipment(nullableText(drillNode, "equipment"));
                     allDrills.add(dto);

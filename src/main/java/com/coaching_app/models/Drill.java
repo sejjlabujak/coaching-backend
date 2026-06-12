@@ -1,12 +1,12 @@
 package com.coaching_app.models;
 
-import com.coaching_app.enums.AgeGroup;
 import com.coaching_app.enums.IntensityLevel;
 import com.coaching_app.enums.TrainingFocus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 // models/Drill.java
 @Entity
@@ -32,9 +32,6 @@ public class Drill {
     @Enumerated(EnumType.STRING)
     private IntensityLevel intensity;
 
-    @Enumerated(EnumType.STRING)
-    private AgeGroup ageGroup;
-
     private String tag;
     private Integer duration;
     private String level; // Beginner, Intermediate, Advanced
@@ -42,4 +39,9 @@ public class Drill {
 
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean deleted = false;
+
+    @ToString.Exclude
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 }

@@ -1,40 +1,121 @@
+////package com.coaching_app.controllers;
+////
+////import com.coaching_app.services.FibaWidgetScraperService;
+////import org.springframework.web.bind.annotation.GetMapping;
+////import org.springframework.web.bind.annotation.RequestMapping;
+////import org.springframework.web.bind.annotation.RestController;
+////
+////@RestController
+////@RequestMapping("/test")
+////public class TestController {
+////
+////    private final FibaWidgetScraperService scraperService;
+////
+////    public TestController(FibaWidgetScraperService scraperService) {
+////        this.scraperService = scraperService;
+////    }
+////
+////    @GetMapping("/scrape")
+////    public String scrape() {
+////
+////        scraperService.scrapeGames();
+////
+////        return "Scraping finished";
+////    }
+////}
+//
 //package com.coaching_app.controllers;
 //
+//import com.coaching_app.dto.BihGameRefDTO;
 //import com.coaching_app.services.FibaWidgetScraperService;
-//import org.springframework.web.bind.annotation.GetMapping;
-//import org.springframework.web.bind.annotation.RequestMapping;
-//import org.springframework.web.bind.annotation.RestController;
+//import com.fasterxml.jackson.databind.JsonNode;
+//import lombok.RequiredArgsConstructor;
+//import org.springframework.http.ResponseEntity;
+//import org.springframework.web.bind.annotation.*;
+//
+//import java.util.ArrayList;
+//import java.util.List;
+//import java.util.LinkedHashMap;
+//import java.util.Map;
 //
 //@RestController
-//@RequestMapping("/test")
+//@RequestMapping("/api/test")
+//@RequiredArgsConstructor
+//@CrossOrigin(origins = "http://localhost:4200")
 //public class TestController {
 //
 //    private final FibaWidgetScraperService scraperService;
 //
-//    public TestController(FibaWidgetScraperService scraperService) {
-//        this.scraperService = scraperService;
+//    // Test single game
+//    @GetMapping("/game/{id}")
+//    public ResponseEntity<?> getGame(@PathVariable int id) {
+//        JsonNode game = scraperService.fetchGame(id);
+//        if (game == null) return ResponseEntity.notFound().build();
+//        return ResponseEntity.ok(game.toString());
 //    }
 //
-//    @GetMapping("/scrape")
-//    public String scrape() {
+//    // Scan range for playoff-related keywords
+//    @GetMapping("/scan")
+//    public ResponseEntity<?> scan(
+//            @RequestParam(required = false, defaultValue = "2847000") int startId,
+//            @RequestParam(required = false, defaultValue = "2849000") int endId) {
 //
-//        scraperService.scrapeGames();
+//        List<String> keywords = List.of(
+//                "nameInternational\":\"Playoff",
+//                "nameInternational\":\"Play Off"
+//        );
+//        List<Integer> ids = scraperService.findGameIdsByKeywordsInRange(startId, endId, keywords);
 //
-//        return "Scraping finished";
+//        Map<String, Object> response = new LinkedHashMap<>();
+//        response.put("startId", startId);
+//        response.put("endId", endId);
+//        response.put("keywords", keywords);
+//        response.put("found", ids.size());
+//        response.put("ids", ids);
+//
+//        return ResponseEntity.ok(response);
+//    }
+//
+//    // Scan range for BIH Women's Premier League games — returns game list with team names
+//    @GetMapping("/scan-bih-women")
+//    public ResponseEntity<List<BihGameRefDTO>> scanBihWomen(
+//            @RequestParam(defaultValue = "2800000") int startId,
+//            @RequestParam(defaultValue = "2840000") int endId) {
+//
+//        List<String> keywords = List.of(
+//                "nameInternational\":\"Bosna i Hercegovina",
+//                "countryCode\":\"BIH",
+//                "genderName\":\"Women"
+//        );
+//
+//        List<Integer> candidateIds = scraperService.findGameIdsByKeywordsInRange(startId, endId, keywords);
+//
+//        List<BihGameRefDTO> results = new ArrayList<>();
+//        for (int id : candidateIds) {
+//            JsonNode root = scraperService.fetchGame(id);
+//            if (root == null) continue;
+//            String homeTeam = root.path("tm").path("1").path("name").asText();
+//            String awayTeam = root.path("tm").path("2").path("name").asText();
+//            results.add(new BihGameRefDTO(id, homeTeam, awayTeam));
+//        }
+//
+//        return ResponseEntity.ok(results);
 //    }
 //}
 
 package com.coaching_app.controllers;
 
+import com.coaching_app.dto.BihGameRefDTO;
 import com.coaching_app.services.FibaWidgetScraperService;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.io.File;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/test")
@@ -43,6 +124,10 @@ import java.util.Map;
 public class TestController {
 
     private final FibaWidgetScraperService scraperService;
+    private final ObjectMapper objectMapper;
+
+    // Path to JSON file in resources (works in IDE/local dev)
+    private static final String JSON_PATH = "src/main/resources/bih_women_games.json";
 
     // Test single game
     @GetMapping("/game/{id}")
@@ -52,26 +137,70 @@ public class TestController {
         return ResponseEntity.ok(game.toString());
     }
 
-    // Scan range for playoff-related keywords
+    // Scan range for BIH team keywords and save IDs to JSON
     @GetMapping("/scan")
     public ResponseEntity<?> scan(
-            @RequestParam(required = false, defaultValue = "2847000") int startId,
-            @RequestParam(required = false, defaultValue = "2849000") int endId) {
+            @RequestParam(required = false, defaultValue = "2818000") int startId,
+            @RequestParam(required = false, defaultValue = "2820000") int endId) throws Exception {
 
         List<String> keywords = List.of(
-                "nameInternational\":\"Playoff",
-                "nameInternational\":\"Play Off"
+                "Play Off", "Playoff",
+                "Jumper", "OKK Zenica", "Celik",
+                "Igman", "Jedinstvo", "Konjic",
+                "Lavovi", "Leotar",
+                "Mladi Krajisnik", "Orlovi",
+                "RMU", "Banovici"
         );
-        List<Integer> ids = scraperService.findGameIdsByKeywordsInRange(startId, endId, keywords);
+
+        List<Integer> foundIds = scraperService.findGameIdsByKeywordsInRange(startId, endId, keywords);
+
+        File jsonFile = new File(JSON_PATH);
+        List<BihGameRefDTO> existing = new ArrayList<>();
+        if (jsonFile.exists() && jsonFile.length() > 2) {
+            existing = objectMapper.readValue(jsonFile, new TypeReference<List<BihGameRefDTO>>() {});
+        }
+
+        Set<Integer> existingIds = new HashSet<>();
+        for (BihGameRefDTO ref : existing) existingIds.add(ref.getFibaGameId());
+
+        // Backfill missing team names on existing entries
+        int backfilled = 0;
+        for (BihGameRefDTO ref : existing) {
+            if (ref.getHomeTeam() != null && !ref.getHomeTeam().isEmpty()) continue;
+            JsonNode root = scraperService.fetchGame(ref.getFibaGameId());
+            if (root != null) {
+                ref.setHomeTeam(root.path("tm").path("1").path("name").asText(""));
+                ref.setAwayTeam(root.path("tm").path("2").path("name").asText(""));
+                backfilled++;
+            }
+        }
+
+        // Add newly-found IDs WITH team names
+        int newlyAdded = 0;
+        for (Integer id : foundIds) {
+            if (existingIds.contains(id)) continue;
+            JsonNode root = scraperService.fetchGame(id);
+            String home = "";
+            String away = "";
+            if (root != null) {
+                home = root.path("tm").path("1").path("name").asText("");
+                away = root.path("tm").path("2").path("name").asText("");
+            }
+            existing.add(new BihGameRefDTO(id, home, away));
+            newlyAdded++;
+        }
+
+        existing.sort(Comparator.comparingInt(BihGameRefDTO::getFibaGameId));
+        objectMapper.writerWithDefaultPrettyPrinter().writeValue(jsonFile, existing);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("startId", startId);
         response.put("endId", endId);
-        response.put("keywords", keywords);
-        response.put("found", ids.size());
-        response.put("ids", ids);
-
+        response.put("foundInRange", foundIds.size());
+        response.put("newlyAdded", newlyAdded);
+        response.put("backfilled", backfilled);
+        response.put("totalInFile", existing.size());
+        response.put("ids", foundIds);
         return ResponseEntity.ok(response);
     }
-
 }

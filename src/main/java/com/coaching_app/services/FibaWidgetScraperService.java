@@ -132,13 +132,14 @@ public class FibaWidgetScraperService {
     }
 
     private boolean containsAnyKeyword(JsonNode node, Collection<String> keywords) {
-        String lowerJson = node.toString().toLowerCase();
-        String compactJson = lowerJson.replaceAll("\\s+", "");
+        // Only look at the two team names, not the entire JSON
+        String team1 = node.path("tm").path("1").path("name").asText("").toLowerCase();
+        String team2 = node.path("tm").path("2").path("name").asText("").toLowerCase();
 
         for (String keyword : keywords) {
             if (keyword == null || keyword.isBlank()) continue;
-            String lowerKeyword = keyword.toLowerCase();
-            if (lowerJson.contains(lowerKeyword) || compactJson.contains(lowerKeyword.replaceAll("\\s+", ""))) {
+            String k = keyword.toLowerCase();
+            if (team1.contains(k) || team2.contains(k)) {
                 return true;
             }
         }
@@ -200,7 +201,7 @@ public class FibaWidgetScraperService {
         // Check competition name — adjust these strings after you see real data
         String[] biHKeywords = {
                 "bih", "bosna", "bosnia", "hercegovina",
-                "premijer liga", "kup bih", "liga bih"
+                "premijer liga", "kup bih", "liga bih", "premier", "women", "zene"
         };
         String lowerJson = node.toString().toLowerCase();
         for (String keyword : biHKeywords) {

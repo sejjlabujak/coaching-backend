@@ -8,7 +8,6 @@ public class OcrConfirmDTO {
     private String description;
     private String focus;
     private String intensity;
-    private String ageGroup;
     private String level;
     private String equipment;
     private Integer duration;

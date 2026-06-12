@@ -3,11 +3,13 @@ package com.coaching_app.controllers;
 import com.coaching_app.dto.PlayerDTO;
 import com.coaching_app.dto.PlayerResponseDTO;
 import com.coaching_app.models.Player;
+import com.coaching_app.models.User;
 import com.coaching_app.repositories.PlayerRepository;
 import com.coaching_app.services.PlayerSyncService;
 import com.coaching_app.services.PlayersScraperService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,8 +26,9 @@ public class PlayerController {
 
     @GetMapping
     public ResponseEntity<List<PlayerResponseDTO>> getAllPlayers() {
+        User coachUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(
-                playerRepository.findAll().stream()
+                playerRepository.findByUserId(coachUser.getId()).stream()
                         .map(this::toDto)
                         .toList()
         );
@@ -38,20 +41,9 @@ public class PlayerController {
 
     @PostMapping("/sync-roster")
     public ResponseEntity<Map<String, Object>> syncRoster() {
-        List<PlayerDTO> roster = scraperService.scrapeRoster();
-        List<PlayerSyncService.FibaPlayerRef> refs = roster.stream()
-                .filter(dto -> dto.getFullName() != null && dto.getFullName().contains(" "))
-                .map(dto -> {
-                    String[] parts = dto.getFullName().trim().split("\\s+", 2);
-                    return new PlayerSyncService.FibaPlayerRef(parts[0], parts[1], null);
-                })
-                .toList();
-        playerSyncService.syncPlayersFromGame(refs);
-        return ResponseEntity.ok(Map.of(
-                "rosterSize", roster.size(),
-                "synced", refs.size(),
-                "status", "Done"
-        ));
+        User coachUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        playerSyncService.syncRosterForCoach(coachUser);
+        return ResponseEntity.ok(Map.of("status", "Done"));
     }
 
     private PlayerResponseDTO toDto(Player p) {

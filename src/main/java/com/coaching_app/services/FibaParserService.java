@@ -1,17 +1,25 @@
 package com.coaching_app.services;
 
+import com.coaching_app.dto.BihGameRefDTO;
 import com.coaching_app.models.Game;
 import com.coaching_app.models.IndividualPerformance;
+import com.coaching_app.models.Team;
 import com.coaching_app.models.TeamPerformance;
 import com.coaching_app.repositories.GameRepository;
+import com.coaching_app.repositories.TeamRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -21,27 +29,39 @@ public class FibaParserService {
     private final GameRepository gameRepository;
     private final FibaWidgetScraperService scraperService;
     private final PlayerSyncService playerSyncService;
+    private final TeamRepository teamRepository;
+    private final ObjectMapper objectMapper;
 
-    // Team we are tracking — matches by name substring
-    private static final String OUR_TEAM = "Play Off";
+    private List<BihGameRefDTO> cachedGameRefs = null;
 
-    private static final List<Integer> GAME_IDS = List.of(
-            2801746, 2806047, 2808450, 2811975, 2814884,
-            2815188, 2817375, 2818322, 2818407, 2818581,
-            2818583, 2820915, 2827172, 2830005, 2830652,
-            2832249, 2832818, 2833879, 2834205, 2834206
-    );
+    // ── Load game list from JSON ──────────────────────────────────────────────
+
+    private List<BihGameRefDTO> loadGameIdsFromJson() {
+        if (cachedGameRefs != null) return cachedGameRefs;
+        try {
+            ClassPathResource resource = new ClassPathResource("bih_women_games.json");
+            cachedGameRefs = objectMapper.readValue(
+                    resource.getInputStream(),
+                    new TypeReference<List<BihGameRefDTO>>() {}
+            );
+            log.info("Loaded {} game refs from bih_women_games.json", cachedGameRefs.size());
+            return cachedGameRefs;
+        } catch (IOException e) {
+            log.error("Failed to load bih_women_games.json: {}", e.getMessage());
+            return List.of();
+        }
+    }
 
     // ── Import all known games ────────────────────────────────────────────────
 
     public List<Game> importAllGames() {
         List<Game> saved = new ArrayList<>();
-        for (int fibaId : GAME_IDS) {
+        for (BihGameRefDTO ref : loadGameIdsFromJson()) {
             try {
-                Game game = importGame(fibaId);
+                Game game = importGame(ref.getFibaGameId());
                 if (game != null) saved.add(game);
             } catch (Exception e) {
-                log.warn("Failed to import game {}: {}", fibaId, e.getMessage());
+                log.warn("Failed to import game {}: {}", ref.getFibaGameId(), e.getMessage());
             }
         }
         log.info("Imported {} games", saved.size());
@@ -51,7 +71,6 @@ public class FibaParserService {
     // ── Import single game ────────────────────────────────────────────────────
 
     public Game importGame(int fibaId) {
-        // Skip if already imported
         if (gameRepository.findByFibaGameId(fibaId).isPresent()) {
             log.info("Game {} already exists, skipping", fibaId);
             return gameRepository.findByFibaGameId(fibaId).get();
@@ -70,50 +89,89 @@ public class FibaParserService {
         String team1Name = team1.path("name").asText();
         String team2Name = team2.path("name").asText();
 
-        // Determine which team is ours
-        boolean ourTeamIsHome = team1Name.contains(OUR_TEAM);
-        boolean ourTeamIsAway = team2Name.contains(OUR_TEAM);
+        int homeScore = team1.path("score").asInt();
+        int awayScore = team2.path("score").asInt();
+        String result = homeScore >= awayScore ? "WIN" : "LOSS";
 
-        if (!ourTeamIsHome && !ourTeamIsAway) {
-            log.info("Game {} does not involve {}, skipping", fibaId, OUR_TEAM);
-            return null;
-        }
-
-        JsonNode ourTeamNode = ourTeamIsHome ? team1 : team2;
-        JsonNode opponentNode = ourTeamIsHome ? team2 : team1;
-
-        int ourScore = ourTeamNode.path("score").asInt();
-        int opponentScore = opponentNode.path("score").asInt();
-        String result = ourScore > opponentScore ? "WIN" : "LOSS";
-
-        // Build Game
         Game game = new Game();
         game.setFibaGameId(fibaId);
         game.setHomeTeam(team1Name);
         game.setAwayTeam(team2Name);
-        game.setHomeScore(team1.path("score").asInt());
-        game.setAwayScore(team2.path("score").asInt());
+        game.setHomeScore(homeScore);
+        game.setAwayScore(awayScore);
         game.setResult(result);
-        game.setDate(LocalDate.now()); // FIBA JSON doesn't include date in this format
-        game.setCompetition("KSBIH Playoff");
+        game.setDate(LocalDate.now());
+        game.setCompetition("BIH Women's Premier League");
 
-        // Build TeamPerformance from our team's totals
-        TeamPerformance tp = parseTeamPerformance(ourTeamNode, game);
+        TeamPerformance tp = parseTeamPerformance(team1, game);
         game.setTeamPerformance(tp);
 
-        // Build IndividualStats from our team's players
-        List<IndividualPerformance> stats = parsePlayers(ourTeamNode, game);
+        List<IndividualPerformance> stats = parsePlayers(team1, game);
         game.setIndividualStats(stats);
 
         Game saved = gameRepository.save(game);
-        log.info("Saved game {} — {} {} vs {} {}", fibaId, team1Name, ourScore, opponentScore, result);
+        log.info("Saved game {} — {} {} : {} {}", fibaId, team1Name, homeScore, awayScore, result);
 
-        List<PlayerSyncService.FibaPlayerRef> fibaPlayers = collectPlayerRefs(ourTeamNode);
+        linkTeamRefs(saved, team1Name, team2Name);
+
+        List<PlayerSyncService.FibaPlayerRef> fibaPlayers = collectPlayerRefs(team1);
         if (!fibaPlayers.isEmpty()) {
             playerSyncService.syncPlayersFromGame(fibaPlayers);
         }
         return saved;
     }
+
+    // ── Relink all existing games to Team FKs (backfill) ─────────────────────
+
+    public int[] relinkAllGames() {
+        List<Game> all = gameRepository.findAll();
+        int relinked = 0;
+        int unmatched = 0;
+
+        for (Game game : all) {
+            Team home = resolveTeam(game.getHomeTeam());
+            Team away = resolveTeam(game.getAwayTeam());
+
+            if (home == null) unmatched++;
+            if (away == null) unmatched++;
+
+            game.setHomeTeamRef(home);
+            game.setAwayTeamRef(away);
+            gameRepository.save(game);
+            relinked++;
+        }
+
+        log.info("Relinked {} games, {} unmatched team names", relinked, unmatched);
+        return new int[]{relinked, unmatched};
+    }
+
+    // ── Match FIBA name to Team row ───────────────────────────────────────────
+
+    private void linkTeamRefs(Game game, String homeTeamName, String awayTeamName) {
+        game.setHomeTeamRef(resolveTeam(homeTeamName));
+        game.setAwayTeamRef(resolveTeam(awayTeamName));
+        gameRepository.save(game);
+    }
+
+    private Team resolveTeam(String fibaName) {
+        if (fibaName == null || fibaName.isBlank()) return null;
+
+        Optional<Team> exact = teamRepository.findByTeamName(fibaName);
+        if (exact.isPresent()) return exact.get();
+
+        String fibaLower = fibaName.toLowerCase();
+        for (Team t : teamRepository.findAll()) {
+            String dbLower = t.getTeamName().toLowerCase();
+            if (dbLower.contains(fibaLower) || fibaLower.contains(dbLower)) {
+                return t;
+            }
+        }
+
+        log.warn("No Team row found for FIBA name '{}' — FK will be null", fibaName);
+        return null;
+    }
+
+    // ── Collect player refs ───────────────────────────────────────────────────
 
     private List<PlayerSyncService.FibaPlayerRef> collectPlayerRefs(JsonNode team) {
         List<PlayerSyncService.FibaPlayerRef> refs = new ArrayList<>();
@@ -122,7 +180,7 @@ public class FibaParserService {
         players.fields().forEachRemaining(entry -> {
             JsonNode p = entry.getValue();
             String minutes = p.path("sMinutes").asText("0:00");
-            if (minutes.equals("0:00")) return; // skip DNPs
+            if (minutes.equals("0:00")) return;
 
             String firstName   = p.path("firstName").asText();
             String familyName  = p.path("familyName").asText();
@@ -181,8 +239,6 @@ public class FibaParserService {
         players.fields().forEachRemaining(entry -> {
             JsonNode p = entry.getValue();
             String minutes = p.path("sMinutes").asText("0:00");
-
-            // Skip players who didn't play
             if (minutes.equals("0:00")) return;
 
             IndividualPerformance stat = new IndividualPerformance();

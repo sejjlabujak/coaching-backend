@@ -2,10 +2,12 @@ package com.coaching_app.controllers;
 
 import com.coaching_app.dto.OcrConfirmDTO;
 import com.coaching_app.dto.OcrUploadResponseDTO;
+import com.coaching_app.models.User;
 import com.coaching_app.services.DrillService;
 import com.coaching_app.services.OcrService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,6 +22,10 @@ public class OcrController {
 
     private final OcrService ocrService;
     private final DrillService drillService;
+
+    private User currentUser() {
+        return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    }
 
     // POST /api/drills/ocr-upload
     @PostMapping("/ocr-upload")
@@ -56,7 +62,7 @@ public class OcrController {
     @PostMapping("/ocr-confirm-all")
     public ResponseEntity<Map<String, Object>> confirmAllDrills(
             @RequestBody List<OcrConfirmDTO> drills) {
-        int saved = drillService.saveAllDrillsFromOcr(drills);
+        int saved = drillService.saveAllDrillsFromOcr(drills, currentUser());
         return ResponseEntity.ok(Map.of("saved", saved, "status", "Saved"));
     }
 
@@ -64,7 +70,7 @@ public class OcrController {
     @PostMapping("/ocr-confirm")
     public ResponseEntity<Map<String, Object>> confirmOcr(
             @RequestBody OcrConfirmDTO dto) {
-        Long id = drillService.saveDrillFromOcr(dto);
+        Long id = drillService.saveDrillFromOcr(dto, currentUser());
         return ResponseEntity.ok(Map.of("id", id, "status", "Saved"));
     }
 }

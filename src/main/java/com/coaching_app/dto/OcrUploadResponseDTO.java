@@ -31,7 +31,6 @@ public class OcrUploadResponseDTO {
     private String category;        // TrainingFocus
     private String level;
     private String intensity;
-    private String ageGroup;
     private String duration;
     private String equipment;
 }

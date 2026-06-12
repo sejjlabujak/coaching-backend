@@ -1,16 +1,15 @@
 package com.coaching_app.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 import java.util.List;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class SessionDetailDTO {
-    private Long id;
+@AllArgsConstructor
+public class UpdateSessionDTO {
     private String title;
     private String date;
     private String time;
@@ -20,5 +19,4 @@ public class SessionDetailDTO {
     private String ageGroup;
     private List<TrainingDrillDTO> drills;
     private String note;
-    private Boolean readOnly;
 }
