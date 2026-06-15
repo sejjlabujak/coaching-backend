@@ -15,7 +15,6 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/test")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:4200")
 public class TestController {
 
     private final FibaWidgetScraperService scraperService;
@@ -30,6 +29,7 @@ public class TestController {
         return ResponseEntity.ok(game.toString());
     }
 
+    //PUT IN SERVICE
     @GetMapping("/scan")
     public ResponseEntity<?> scan(
             @RequestParam(required = false, defaultValue = "2818000") int startId,

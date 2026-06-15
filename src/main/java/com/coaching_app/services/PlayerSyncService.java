@@ -26,10 +26,12 @@ public class PlayerSyncService {
     private final ImageRepository imageRepository;
     private final PlayerStatsRepository individualStatRepository;
 
+
     public void syncPlayersFromGame(List<FibaPlayerRef> fibaPlayers) {
         syncPlayersFromGame(fibaPlayers, null);
     }
 
+    //Syncs players from FibaParserService.importGame
     public void syncPlayersFromGame(List<FibaPlayerRef> fibaPlayers, User coachUser) {
         log.info("Starting player sync for {} FIBA players", fibaPlayers.size());
 
@@ -66,6 +68,7 @@ public class PlayerSyncService {
         log.info("Player sync complete");
     }
 
+    //Triggered when coaches create account
     @Transactional
     public void syncRosterForCoach(User coachUser) {
         if (coachUser == null || coachUser.getTeam() == null || coachUser.getTeam().getRosterUrl() == null) {
@@ -86,7 +89,6 @@ public class PlayerSyncService {
     }
 
     // ── Matching ──────────────────────────────────────────────────────────────
-
     private PlayerDTO findBestMatch(FibaPlayerRef fiba, List<PlayerDTO> roster) {
         String fibaFirst  = normalize(fiba.firstName());
         String fibaFamily = normalize(fiba.familyName());
@@ -110,12 +112,6 @@ public class PlayerSyncService {
     }
 
     // ── Upsert ────────────────────────────────────────────────────────────────
-
-    @Transactional
-    public void upsertPlayer(FibaPlayerRef fiba, PlayerDTO dto) {
-        upsertPlayer(fiba, dto, null);
-    }
-
     @Transactional
     public void upsertPlayer(FibaPlayerRef fiba, PlayerDTO dto, User coachUser) {
         Optional<Player> existing = Optional.empty();
@@ -183,7 +179,6 @@ public class PlayerSyncService {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-
     private String normalize(String input) {
         if (input == null) return "";
         return Normalizer.normalize(input, Normalizer.Form.NFD)
@@ -191,7 +186,6 @@ public class PlayerSyncService {
                 .toLowerCase()
                 .trim();
     }
-
     public record FibaPlayerRef(
             String firstName,
             String familyName,

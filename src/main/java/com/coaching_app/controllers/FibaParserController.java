@@ -13,7 +13,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/fiba")
-@CrossOrigin(origins = "http://localhost:4200")
 @RequiredArgsConstructor
 public class FibaParserController {
 
@@ -29,7 +28,7 @@ public class FibaParserController {
         return ResponseEntity.ok(game.toString());
     }
 
-    // Import all 20 games into DB
+    // Import all games into DB
     @PostMapping("/import")
     public ResponseEntity<Map<String, Object>> importAll() {
         List<Game> games = parserService.importAllGames();

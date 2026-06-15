@@ -2,10 +2,10 @@ package com.coaching_app.services;
 
 import com.coaching_app.dto.DrillDTO;
 import com.coaching_app.dto.OcrConfirmDTO;
-import com.coaching_app.enums.AgeGroup;
 import com.coaching_app.enums.IntensityLevel;
 import com.coaching_app.enums.TrainingFocus;
 import com.coaching_app.models.Drill;
+import com.coaching_app.models.User;
 import com.coaching_app.repositories.DrillRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,6 +30,9 @@ class DrillServiceTest {
     @Mock
     private DrillRepository drillRepository;
 
+    @Mock
+    private User user;
+
     @InjectMocks
     private DrillService drillService;
 
@@ -40,13 +43,14 @@ class DrillServiceTest {
 
     @BeforeEach
     void setUp() {
+        when(user.getId()).thenReturn(1L);
+
         shootingDrill = new Drill();
         shootingDrill.setId(1L);
         shootingDrill.setTitle("Three-Point Shooting");
         shootingDrill.setDescription("Perimeter shooting drill");
         shootingDrill.setFocus(TrainingFocus.SHOOTING);
         shootingDrill.setIntensity(IntensityLevel.HIGH);
-        shootingDrill.setAgeGroup(AgeGroup.SENIOR);
         shootingDrill.setTag("shooting");
         shootingDrill.setDuration(20);
         shootingDrill.setLevel("Intermediate");
@@ -59,7 +63,6 @@ class DrillServiceTest {
         defenseDrill.setDescription("Lateral movement drill");
         defenseDrill.setFocus(TrainingFocus.DEFENSE);
         defenseDrill.setIntensity(IntensityLevel.MEDIUM);
-        defenseDrill.setAgeGroup(AgeGroup.U18);
         defenseDrill.setDuration(15);
         defenseDrill.setLevel("Beginner");
         defenseDrill.setDeleted(false);
@@ -72,10 +75,10 @@ class DrillServiceTest {
     @Test
     @DisplayName("getDrills – no filters returns all non-deleted drills")
     void getDrills_noFilters_returnsAll() {
-        when(drillRepository.findFiltered(null, null))
+        when(drillRepository.findFiltered(1L, null, null))
                 .thenReturn(List.of(shootingDrill, defenseDrill));
 
-        List<DrillDTO> result = drillService.getDrills(null, null);
+        List<DrillDTO> result = drillService.getDrills(null, null, user);
 
         assertThat(result).hasSize(2);
         assertThat(result).extracting(DrillDTO::getTitle)
@@ -85,55 +88,55 @@ class DrillServiceTest {
     @Test
     @DisplayName("getDrills – focus filter is normalized to upper-case enum string")
     void getDrills_withFocus_normalizesAndFilters() {
-        when(drillRepository.findFiltered("SHOOTING", null))
+        when(drillRepository.findFiltered(1L, "SHOOTING", null))
                 .thenReturn(List.of(shootingDrill));
 
-        List<DrillDTO> result = drillService.getDrills("shooting", null);
+        List<DrillDTO> result = drillService.getDrills("shooting", null, user);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getFocus()).isEqualTo("SHOOTING");
-        verify(drillRepository).findFiltered("SHOOTING", null);
+        verify(drillRepository).findFiltered(1L, "SHOOTING", null);
     }
 
     @Test
     @DisplayName("getDrills – focus with spaces is normalized (e.g. 'team building' → 'TEAM_BUILDING')")
     void getDrills_focusWithSpaces_replacesSpaceWithUnderscore() {
-        when(drillRepository.findFiltered("TEAM_BUILDING", null))
+        when(drillRepository.findFiltered(1L, "TEAM_BUILDING", null))
                 .thenReturn(List.of());
 
-        drillService.getDrills("team building", null);
+        drillService.getDrills("team building", null, user);
 
-        verify(drillRepository).findFiltered("TEAM_BUILDING", null);
+        verify(drillRepository).findFiltered(1L, "TEAM_BUILDING", null);
     }
 
     @Test
     @DisplayName("getDrills – blank focus string is treated as null")
     void getDrills_blankFocus_treatedAsNull() {
-        when(drillRepository.findFiltered(null, null)).thenReturn(List.of());
+        when(drillRepository.findFiltered(1L, null, null)).thenReturn(List.of());
 
-        drillService.getDrills("   ", null);
+        drillService.getDrills("   ", null, user);
 
-        verify(drillRepository).findFiltered(null, null);
+        verify(drillRepository).findFiltered(1L, null, null);
     }
 
     @Test
     @DisplayName("getDrills – search keyword is trimmed and passed through")
     void getDrills_withSearch_passesKeywordToRepository() {
-        when(drillRepository.findFiltered(null, "layup"))
+        when(drillRepository.findFiltered(1L, null, "layup"))
                 .thenReturn(List.of(shootingDrill));
 
-        List<DrillDTO> result = drillService.getDrills(null, "  layup  ");
+        List<DrillDTO> result = drillService.getDrills(null, "  layup  ", user);
 
         assertThat(result).hasSize(1);
-        verify(drillRepository).findFiltered(null, "layup");
+        verify(drillRepository).findFiltered(1L, null, "layup");
     }
 
     @Test
     @DisplayName("getDrills – empty list returned when repository finds nothing")
     void getDrills_noMatches_returnsEmptyList() {
-        when(drillRepository.findFiltered(any(), any())).thenReturn(List.of());
+        when(drillRepository.findFiltered(eq(1L), any(), any())).thenReturn(List.of());
 
-        List<DrillDTO> result = drillService.getDrills("DEFENSE", "xyz");
+        List<DrillDTO> result = drillService.getDrills("DEFENSE", "xyz", user);
 
         assertThat(result).isEmpty();
     }
@@ -141,17 +144,16 @@ class DrillServiceTest {
     @Test
     @DisplayName("getDrills – DTO fields are mapped correctly from entity")
     void getDrills_dtoMappingIsComplete() {
-        when(drillRepository.findFiltered(null, null))
+        when(drillRepository.findFiltered(1L, null, null))
                 .thenReturn(List.of(shootingDrill));
 
-        DrillDTO dto = drillService.getDrills(null, null).get(0);
+        DrillDTO dto = drillService.getDrills(null, null, user).get(0);
 
         assertThat(dto.getId()).isEqualTo(1L);
         assertThat(dto.getTitle()).isEqualTo("Three-Point Shooting");
         assertThat(dto.getDescription()).isEqualTo("Perimeter shooting drill");
         assertThat(dto.getFocus()).isEqualTo("SHOOTING");
         assertThat(dto.getIntensity()).isEqualTo("HIGH");
-        assertThat(dto.getAgeGroup()).isEqualTo("SENIOR");
         assertThat(dto.getTag()).isEqualTo("shooting");
         assertThat(dto.getDuration()).isEqualTo(20);
         assertThat(dto.getLevel()).isEqualTo("Intermediate");
@@ -191,13 +193,13 @@ class DrillServiceTest {
     @DisplayName("createDrill – saves drill and returns new id")
     void createDrill_validDto_savesAndReturnsId() {
         DrillDTO dto = new DrillDTO(null, "New Drill", "desc",
-                "SHOOTING", "LOW", "U16", "tag", 10, "Beginner", "cones");
+                "SHOOTING", "LOW", "tag", 10, "Beginner", "cones");
 
         Drill saved = new Drill();
         saved.setId(42L);
         when(drillRepository.save(any(Drill.class))).thenReturn(saved);
 
-        Long id = drillService.createDrill(dto);
+        Long id = drillService.createDrill(dto, user);
 
         assertThat(id).isEqualTo(42L);
         ArgumentCaptor<Drill> captor = ArgumentCaptor.forClass(Drill.class);
@@ -206,7 +208,6 @@ class DrillServiceTest {
         assertThat(persisted.getTitle()).isEqualTo("New Drill");
         assertThat(persisted.getFocus()).isEqualTo(TrainingFocus.SHOOTING);
         assertThat(persisted.getIntensity()).isEqualTo(IntensityLevel.LOW);
-        assertThat(persisted.getAgeGroup()).isEqualTo(AgeGroup.U16);
         assertThat(persisted.getDuration()).isEqualTo(10);
         assertThat(persisted.isDeleted()).isFalse();
     }
@@ -215,20 +216,19 @@ class DrillServiceTest {
     @DisplayName("createDrill – null enum fields are skipped without throwing")
     void createDrill_nullEnumFields_savedWithoutEnums() {
         DrillDTO dto = new DrillDTO(null, "Minimal Drill", null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null);
 
         Drill saved = new Drill();
         saved.setId(5L);
         when(drillRepository.save(any(Drill.class))).thenReturn(saved);
 
-        Long id = drillService.createDrill(dto);
+        Long id = drillService.createDrill(dto, user);
 
         assertThat(id).isEqualTo(5L);
         ArgumentCaptor<Drill> captor = ArgumentCaptor.forClass(Drill.class);
         verify(drillRepository).save(captor.capture());
         assertThat(captor.getValue().getFocus()).isNull();
         assertThat(captor.getValue().getIntensity()).isNull();
-        assertThat(captor.getValue().getAgeGroup()).isNull();
     }
 
     // =========================================================================
@@ -242,7 +242,7 @@ class DrillServiceTest {
         when(drillRepository.save(any())).thenReturn(shootingDrill);
 
         DrillDTO dto = new DrillDTO(null, "Updated Title", "New desc",
-                "DEFENSE", "LOW", "U14", "newtag", 30, "Advanced", "hoops");
+                "DEFENSE", "LOW", "newtag", 30, "Advanced", "hoops");
 
         drillService.updateDrill(1L, dto);
 
@@ -253,7 +253,6 @@ class DrillServiceTest {
         assertThat(updated.getDescription()).isEqualTo("New desc");
         assertThat(updated.getFocus()).isEqualTo(TrainingFocus.DEFENSE);
         assertThat(updated.getIntensity()).isEqualTo(IntensityLevel.LOW);
-        assertThat(updated.getAgeGroup()).isEqualTo(AgeGroup.U14);
         assertThat(updated.getTag()).isEqualTo("newtag");
         assertThat(updated.getDuration()).isEqualTo(30);
         assertThat(updated.getLevel()).isEqualTo("Advanced");
@@ -266,9 +265,8 @@ class DrillServiceTest {
         when(drillRepository.findById(1L)).thenReturn(Optional.of(shootingDrill));
         when(drillRepository.save(any())).thenReturn(shootingDrill);
 
-        // Only update title; everything else null
         DrillDTO dto = new DrillDTO(null, "Only Title Changed", null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null);
 
         drillService.updateDrill(1L, dto);
 
@@ -287,7 +285,7 @@ class DrillServiceTest {
         when(drillRepository.findById(99L)).thenReturn(Optional.empty());
 
         DrillDTO dto = new DrillDTO(null, "Title", null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null);
 
         assertThatThrownBy(() -> drillService.updateDrill(99L, dto))
                 .isInstanceOf(RuntimeException.class)
@@ -297,7 +295,7 @@ class DrillServiceTest {
     }
 
     // =========================================================================
-    // deleteDrill  — tested with multiple scenarios to satisfy homework requirement
+    // deleteDrill
     // =========================================================================
 
     @Test
@@ -363,7 +361,6 @@ class DrillServiceTest {
         dto.setDescription("Full court transition drill");
         dto.setFocus("CONDITIONING");
         dto.setIntensity("HIGH");
-        dto.setAgeGroup("U18");
         dto.setLevel("Advanced");
         dto.setEquipment("balls");
         dto.setDuration(25);
@@ -372,7 +369,7 @@ class DrillServiceTest {
         saved.setId(10L);
         when(drillRepository.save(any(Drill.class))).thenReturn(saved);
 
-        Long id = drillService.saveDrillFromOcr(dto);
+        Long id = drillService.saveDrillFromOcr(dto, user);
 
         assertThat(id).isEqualTo(10L);
         ArgumentCaptor<Drill> captor = ArgumentCaptor.forClass(Drill.class);
@@ -381,7 +378,6 @@ class DrillServiceTest {
         assertThat(persisted.getTitle()).isEqualTo("Fast Break Drill");
         assertThat(persisted.getFocus()).isEqualTo(TrainingFocus.CONDITIONING);
         assertThat(persisted.getIntensity()).isEqualTo(IntensityLevel.HIGH);
-        assertThat(persisted.getAgeGroup()).isEqualTo(AgeGroup.U18);
         assertThat(persisted.getDuration()).isEqualTo(25);
         assertThat(persisted.getLevel()).isEqualTo("Advanced");
         assertThat(persisted.getEquipment()).isEqualTo("balls");
@@ -394,20 +390,18 @@ class DrillServiceTest {
         dto.setTitle("Minimal OCR Drill");
         dto.setFocus(null);
         dto.setIntensity(null);
-        dto.setAgeGroup(null);
 
         Drill saved = new Drill();
         saved.setId(11L);
         when(drillRepository.save(any(Drill.class))).thenReturn(saved);
 
-        Long id = drillService.saveDrillFromOcr(dto);
+        Long id = drillService.saveDrillFromOcr(dto, user);
 
         assertThat(id).isEqualTo(11L);
         ArgumentCaptor<Drill> captor = ArgumentCaptor.forClass(Drill.class);
         verify(drillRepository).save(captor.capture());
         assertThat(captor.getValue().getFocus()).isNull();
         assertThat(captor.getValue().getIntensity()).isNull();
-        assertThat(captor.getValue().getAgeGroup()).isNull();
     }
 
     // =========================================================================
@@ -427,9 +421,9 @@ class DrillServiceTest {
         saved.setId(1L);
         when(drillRepository.save(any(Drill.class))).thenReturn(saved);
 
-        int count = drillService.saveAllDrillsFromOcr(List.of(dto1, dto2));
+        int count = drillService.saveAllDrillsFromOcr(List.of(dto1, dto2), user);
 
-        assertThat(count).isEqualTo(2); // two valid drills, both saved
+        assertThat(count).isEqualTo(2);
         verify(drillRepository, times(2)).save(any(Drill.class));
     }
 
@@ -448,16 +442,16 @@ class DrillServiceTest {
         saved.setId(2L);
         when(drillRepository.save(any(Drill.class))).thenReturn(saved);
 
-        int count = drillService.saveAllDrillsFromOcr(List.of(bad, good));
+        int count = drillService.saveAllDrillsFromOcr(List.of(bad, good), user);
 
-        assertThat(count).isEqualTo(1); // only the good one saved
+        assertThat(count).isEqualTo(1);
         verify(drillRepository, times(1)).save(any());
     }
 
     @Test
     @DisplayName("saveAllDrillsFromOcr – empty list returns 0 and makes no DB calls")
     void saveAllDrillsFromOcr_emptyList_returnsZero() {
-        int count = drillService.saveAllDrillsFromOcr(List.of());
+        int count = drillService.saveAllDrillsFromOcr(List.of(), user);
 
         assertThat(count).isEqualTo(0);
         verify(drillRepository, never()).save(any());
