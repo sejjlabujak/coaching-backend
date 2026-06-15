@@ -4,13 +4,14 @@ import com.coaching_app.dto.PlayerStatsDTO;
 import com.coaching_app.models.Game;
 import com.coaching_app.models.IndividualPerformance;
 import com.coaching_app.models.Player;
-import com.coaching_app.models.User;
 import com.coaching_app.repositories.PlayerStatsRepository;
 import com.coaching_app.repositories.PlayerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -19,12 +20,14 @@ public class PlayerStatsService {
     private final PlayerRepository playerRepository;
     private final PlayerStatsRepository playerStatsRepository;
 
-    /** Backward-compatible no-user overload — opponent filtering uses raw name heuristic. */
+    /** Backward-compatible overload — no team context. */
+    @Transactional(readOnly = true)
     public List<PlayerStatsDTO> getPlayerStats(Long playerId, String opponent) {
-        return getPlayerStats(playerId, opponent, null);
+        return getPlayerStats(playerId, opponent, (String) null);
     }
 
-    public List<PlayerStatsDTO> getPlayerStats(Long playerId, String opponent, User currentUser) {
+    @Transactional(readOnly = true)
+    public List<PlayerStatsDTO> getPlayerStats(Long playerId, String opponent, String ourTeamName) {
         Player player = playerRepository.findById(playerId)
                 .orElseThrow(() -> new RuntimeException("Player not found: " + playerId));
 
@@ -38,18 +41,40 @@ public class PlayerStatsService {
                     );
         }
 
-        String ourTeamName = (currentUser != null && currentUser.getTeam() != null)
-                ? currentUser.getTeam().getTeamName()
-                : null;
-
-        return allStats.stream()
+        List<IndividualPerformance> withGame = allStats.stream()
                 .filter(stat -> stat.getGame() != null)
-                .filter(stat -> matchesOpponent(stat.getGame(), opponent, ourTeamName))
-                .map(stat -> toDto(stat, ourTeamName))
+                .toList();
+
+        // Infer the player's own team from game data — it's the team that appears most across all games
+        String playerTeamName = inferPlayerTeam(withGame);
+
+        return withGame.stream()
+                .filter(stat -> matchesOpponent(stat.getGame(), opponent, playerTeamName))
+                .map(stat -> toDto(stat, playerTeamName))
                 .toList();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Counts how many games each team name appears in (home or away).
+     * The player's own team is the one that appears in the most games.
+     */
+    private String inferPlayerTeam(List<IndividualPerformance> stats) {
+        Map<String, Long> counts = stats.stream()
+                .flatMap(s -> {
+                    List<String> teams = new java.util.ArrayList<>();
+                    if (s.getGame().getHomeTeam() != null) teams.add(s.getGame().getHomeTeam());
+                    if (s.getGame().getAwayTeam() != null) teams.add(s.getGame().getAwayTeam());
+                    return teams.stream();
+                })
+                .collect(java.util.stream.Collectors.groupingBy(t -> t, java.util.stream.Collectors.counting()));
+
+        return counts.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
+    }
 
     private boolean matchesOpponent(Game game, String opponent, String ourTeamName) {
         if (opponent == null || opponent.isBlank()) return true;

@@ -10,6 +10,7 @@ import com.coaching_app.models.TrainingDrill;
 import com.coaching_app.models.User;
 import com.coaching_app.repositories.DrillRepository;
 import com.coaching_app.repositories.SessionRepository;
+import com.coaching_app.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -26,16 +27,17 @@ public class SessionService {
 
     private final SessionRepository sessionRepository;
     private final DrillRepository drillRepository;
+    private final UserRepository userRepository;
 
-    public List<SessionDTO> getSessions(Integer month, Integer year, User user) {
+    public List<SessionDTO> getSessions(Integer month, Integer year, Long userId) {
         List<Session> sessions;
 
         if (month != null && year != null) {
-            sessions = sessionRepository.findByMonthAndYear(user.getId(), month, year);
+            sessions = sessionRepository.findByMonthAndYear(userId, month, year);
         } else {
             sessions = sessionRepository.findAll()
                     .stream()
-                    .filter(s -> !s.isDeleted() && s.getUser() != null && s.getUser().getId().equals(user.getId()))
+                    .filter(s -> !s.isDeleted() && s.getUser() != null && s.getUser().getId().equals(userId))
                     .toList();
         }
 
@@ -44,13 +46,16 @@ public class SessionService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public SessionDetailDTO getSessionById(Long id) {
-        return sessionRepository.findActiveById(id)
-                .map(this::convertToSessionDetailDTO)
+        Session session = sessionRepository.findActiveById(id)
                 .orElseThrow(() -> new RuntimeException("Session not found: " + id));
+        return convertToSessionDetailDTO(session);
     }
 
-    public Long reuseSession(Long sourceSessionId, String newDate, User user) {
+    public Long reuseSession(Long sourceSessionId, String newDate, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
         Session sourceSession = sessionRepository.findById(sourceSessionId)
                 .orElseThrow(() -> new RuntimeException("Session not found: " + sourceSessionId));
 
@@ -84,7 +89,9 @@ public class SessionService {
         return sessionRepository.save(savedSession).getId();
     }
 
-    public Long createSession(SessionDetailDTO dto, User user) {
+    public Long createSession(SessionDetailDTO dto, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
         LocalDate date = LocalDate.parse(dto.getDate());
         String time = dto.getTime() != null ? dto.getTime() : "00:00";
         int duration = dto.getDuration() != null ? dto.getDuration() : 0;
@@ -138,7 +145,9 @@ public class SessionService {
         return sessionRepository.save(savedSession).getId();
     }
 
-    public Long updateSession(Long id, UpdateSessionDTO dto, User user) {
+    public Long updateSession(Long id, UpdateSessionDTO dto, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
         Session session = sessionRepository.findActiveById(id)
                 .orElseThrow(() -> new RuntimeException("Session not found: " + id));
 

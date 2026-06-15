@@ -53,10 +53,8 @@ public class InjuryService {
 
         Injury injury = new Injury();
         injury.setDescription(dto.getDescription());
-        injury.setStartDate(dto.getStartDate() != null
-                ? LocalDate.parse(dto.getStartDate())
-                : LocalDate.now());
-        injury.setIsActive(true);
+        injury.setStartDate(parseDate(dto.getStartDate()));
+        injury.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
         injury.setPlayer(player);
 
         return toDto(injuryRepository.save(injury));
@@ -67,12 +65,9 @@ public class InjuryService {
     public InjuryDTO updateInjury(Long injuryId, InjuryDTO dto) {
         Injury injury = findById(injuryId);
 
-        if (dto.getDescription() != null) {
-            injury.setDescription(dto.getDescription());
-        }
-
-        // setIsActive handles endDate automatically via the model method
-        injury.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
+        if (dto.getDescription() != null) injury.setDescription(dto.getDescription());
+        if (dto.getStartDate() != null) injury.setStartDate(parseDate(dto.getStartDate()));
+        injury.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : injury.isActive());
 
         return toDto(injuryRepository.save(injury));
     }
@@ -92,6 +87,15 @@ public class InjuryService {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private LocalDate parseDate(String raw) {
+        if (raw == null || raw.isBlank()) return LocalDate.now();
+        try {
+            return LocalDate.parse(raw);
+        } catch (Exception e) {
+            return LocalDate.now(); // free-text dates (e.g. "Dec 2025") fall back to today
+        }
+    }
 
     private Injury findById(Long id) {
         return injuryRepository.findById(id)

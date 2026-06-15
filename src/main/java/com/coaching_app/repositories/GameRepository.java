@@ -24,4 +24,6 @@ public interface GameRepository extends JpaRepository<Game, Long> {
     List<Game> findByHomeTeamRef_IdOrAwayTeamRef_IdOrderByDateDesc(Long homeId, Long awayId);
 
     List<Game> findTop4ByHomeTeamRef_IdOrAwayTeamRef_IdOrderByDateDesc(Long homeId, Long awayId);
+
+    List<Game> findTop3ByHomeTeamRef_IdOrderByDateDesc(Long homeTeamRefId);
 }
