@@ -11,8 +11,8 @@ import org.hibernate.type.descriptor.jdbc.TinyIntAsSmallIntJdbcType;
 @NoArgsConstructor
 public class TrainingDrillDTO {
     private Long id;
+    private Long drillId;
     private String title;
     private Integer duration;
-//    private String description;
     private Integer orderIndex;
 }

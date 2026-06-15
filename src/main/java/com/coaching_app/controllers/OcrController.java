@@ -1,13 +1,12 @@
 package com.coaching_app.controllers;
 
 import com.coaching_app.dto.OcrConfirmDTO;
-import com.coaching_app.dto.OcrUploadResponseDTO;
 import com.coaching_app.models.User;
 import com.coaching_app.services.DrillService;
 import com.coaching_app.services.OcrService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,11 +22,6 @@ public class OcrController {
     private final OcrService ocrService;
     private final DrillService drillService;
 
-    private User currentUser() {
-        return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    }
-
-    // POST /api/drills/ocr-upload
     @PostMapping("/ocr-upload")
     public ResponseEntity<Map<String, Object>> uploadOcr(
             @RequestParam("drill_document") MultipartFile file) {
@@ -47,7 +41,6 @@ public class OcrController {
             throw new RuntimeException("Could not read file", e);
         }
 
-        // Process synchronously — just wait for the result
         List<OcrConfirmDTO> drills = ocrService.processBytesAndReturn(bytes, contentType);
 
         String jobId = java.util.UUID.randomUUID().toString();
@@ -58,19 +51,19 @@ public class OcrController {
         ));
     }
 
-    // POST /api/drills/ocr-confirm-all
     @PostMapping("/ocr-confirm-all")
     public ResponseEntity<Map<String, Object>> confirmAllDrills(
-            @RequestBody List<OcrConfirmDTO> drills) {
-        int saved = drillService.saveAllDrillsFromOcr(drills, currentUser());
+            @RequestBody List<OcrConfirmDTO> drills,
+            @AuthenticationPrincipal User user) {
+        int saved = drillService.saveAllDrillsFromOcr(drills, user);
         return ResponseEntity.ok(Map.of("saved", saved, "status", "Saved"));
     }
 
-    // POST /api/drills/ocr-confirm
     @PostMapping("/ocr-confirm")
     public ResponseEntity<Map<String, Object>> confirmOcr(
-            @RequestBody OcrConfirmDTO dto) {
-        Long id = drillService.saveDrillFromOcr(dto, currentUser());
+            @RequestBody OcrConfirmDTO dto,
+            @AuthenticationPrincipal User user) {
+        Long id = drillService.saveDrillFromOcr(dto, user);
         return ResponseEntity.ok(Map.of("id", id, "status", "Saved"));
     }
 }

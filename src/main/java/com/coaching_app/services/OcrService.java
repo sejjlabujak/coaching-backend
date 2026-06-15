@@ -1,9 +1,9 @@
 package com.coaching_app.services;
 
 import com.coaching_app.dto.OcrConfirmDTO;
-import com.coaching_app.dto.OcrUploadResponseDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import net.sourceforge.tess4j.Tesseract;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 @Service
+@RequiredArgsConstructor
 public class OcrService {
     @Value("${openrouter.api.key:}")
     private String openRouterApiKey;
@@ -30,8 +31,7 @@ public class OcrService {
     @Value("${tesseract.data.path}")
     private String tessDataPath;
 
-    @Value("${gemini.api.key}")
-    private String geminiApiKey;
+    private final GeminiClient geminiClient;
 
     private final ExecutorService executor = Executors.newFixedThreadPool(
             Math.max(2, Runtime.getRuntime().availableProcessors() - 1)
@@ -134,12 +134,9 @@ public class OcrService {
                 ]
                 """;
 
-            String requestBody;
-            HttpRequest request;
-            HttpClient client = HttpClient.newHttpClient();
-
+            String content;
             if (useOpenRouter) {
-                requestBody = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
+                String requestBody = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
                     put("model", "meta-llama/llama-3.3-70b-instruct:free");
                     put("messages", List.of(new java.util.HashMap<>() {{
                         put("role", "user");
@@ -147,59 +144,21 @@ public class OcrService {
                     }}));
                 }});
 
-                request = HttpRequest.newBuilder()
+                HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create("https://openrouter.ai/api/v1/chat/completions"))
                         .header("Content-Type", "application/json")
                         .header("Authorization", "Bearer " + openRouterApiKey)
                         .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                         .build();
-            } else {
-                requestBody = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
-                    put("contents", List.of(new java.util.HashMap<>() {{
-                        put("parts", List.of(new java.util.HashMap<>() {{
-                            put("text", prompt);
-                        }}));
-                    }}));
-                }});
 
-                request = HttpRequest.newBuilder()
-                        .uri(URI.create(
-                                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="
-                                        + geminiApiKey))
-                        .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                        .build();
-            }
+                HttpResponse<String> response = HttpClient.newHttpClient()
+                        .send(request, HttpResponse.BodyHandlers.ofString());
 
-            HttpResponse<String> response = client.send(request,
-                    HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() != 200) {
+                    System.out.println(">>> Chunk " + (i + 1) + " failed: " + response.body());
+                    continue;
+                }
 
-            if (response.statusCode() == 429) {
-                int waitSeconds = 60;
-                try {
-                    JsonNode errorRoot = objectMapper.readTree(response.body());
-                    JsonNode details = errorRoot.path("error").path("details");
-                    for (JsonNode detail : details) {
-                        if (detail.has("retryDelay")) {
-                            String retryDelay = detail.path("retryDelay").asText();
-                            waitSeconds = Integer.parseInt(retryDelay.replace("s", "")) + 10;
-                        }
-                    }
-                } catch (Exception ignored) {}
-
-                System.out.println(">>> Rate limited on chunk " + (i + 1) + ", waiting " + waitSeconds + " seconds...");
-                Thread.sleep(waitSeconds * 1000L);
-                i--;
-                continue;
-            }
-
-            if (response.statusCode() != 200) {
-                System.out.println(">>> Chunk " + (i + 1) + " failed: " + response.body());
-                continue;
-            }
-
-            String content;
-            if (useOpenRouter) {
                 JsonNode root = objectMapper.readTree(response.body());
                 content = root
                         .path("choices").get(0)
@@ -207,13 +166,12 @@ public class OcrService {
                         .path("content")
                         .asText();
             } else {
-                JsonNode root = objectMapper.readTree(response.body());
-                content = root
-                        .path("candidates").get(0)
-                        .path("content")
-                        .path("parts").get(0)
-                        .path("text")
-                        .asText();
+                try {
+                    content = geminiClient.generate(prompt, 3);
+                } catch (RuntimeException e) {
+                    System.out.println(">>> Chunk " + (i + 1) + " failed: " + e.getMessage());
+                    continue;
+                }
             }
 
             content = content.replaceAll("```json|```", "").trim();
