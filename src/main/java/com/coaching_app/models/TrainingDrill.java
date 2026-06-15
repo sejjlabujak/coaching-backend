@@ -17,7 +17,6 @@ public class TrainingDrill {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;
     private Integer duration;
     private Integer orderIndex;
 

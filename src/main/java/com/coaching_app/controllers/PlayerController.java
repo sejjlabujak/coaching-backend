@@ -9,7 +9,7 @@ import com.coaching_app.services.PlayerSyncService;
 import com.coaching_app.services.PlayersScraperService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,10 +25,10 @@ public class PlayerController {
     private final PlayerSyncService playerSyncService;
 
     @GetMapping
-    public ResponseEntity<List<PlayerResponseDTO>> getAllPlayers() {
-        User coachUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    public ResponseEntity<List<PlayerResponseDTO>> getAllPlayers(
+            @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(
-                playerRepository.findByUserId(coachUser.getId()).stream()
+                playerRepository.findByUserId(user.getId()).stream()
                         .map(this::toDto)
                         .toList()
         );
@@ -40,9 +40,9 @@ public class PlayerController {
     }
 
     @PostMapping("/sync-roster")
-    public ResponseEntity<Map<String, Object>> syncRoster() {
-        User coachUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        playerSyncService.syncRosterForCoach(coachUser);
+    public ResponseEntity<Map<String, Object>> syncRoster(
+            @AuthenticationPrincipal User user) {
+        playerSyncService.syncRosterForCoach(user);
         return ResponseEntity.ok(Map.of("status", "Done"));
     }
 

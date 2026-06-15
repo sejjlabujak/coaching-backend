@@ -23,10 +23,6 @@ public class PlayersScraperService {
 
     private static final String BASE_URL = "https://basketball.eurobasket.com";
 
-    /** Regex to extract numeric ID from /player/Name/532397?Women=1 */
-    private static final Pattern PLAYER_ID_PATTERN =
-            Pattern.compile("/player/[^/]+/(\\d+)");
-
     /** Regex to extract birth date from bio: "born on March 1 1997" or "born on Mar.1, 1997" */
     private static final Pattern BIRTH_DATE_PATTERN =
             Pattern.compile("born on ([A-Za-z.]+\\.?\\s*\\d{1,2},?\\s*\\d{4})");
@@ -206,17 +202,6 @@ public class PlayersScraperService {
         dto.setNationality(nationality);
 
         return dto;
-    }
-
-    private Integer extractPlayerId(String href) {
-        if (href == null) return null;
-        Matcher m = PLAYER_ID_PATTERN.matcher(href);
-        if (m.find()) {
-            try {
-                return Integer.parseInt(m.group(1));
-            } catch (NumberFormatException ignored) {}
-        }
-        return null;
     }
 
     /** Ensure the href is absolute and strip query string for map keying. */

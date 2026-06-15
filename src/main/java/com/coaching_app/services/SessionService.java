@@ -71,14 +71,13 @@ public class SessionService {
         newSession.setIntensity(sourceSession.getIntensity());
         newSession.setFocus(sourceSession.getFocus());
         newSession.setAgeGroup(sourceSession.getAgeGroup());
-        newSession.setColor(sourceSession.getColor());
+
         newSession.setUser(user);
 
         Session savedSession = sessionRepository.save(newSession);
 
         sourceSession.getDrills().forEach(sourceDrill -> {
             TrainingDrill newDrill = new TrainingDrill();
-            newDrill.setName(sourceDrill.getName());
             newDrill.setDuration(sourceDrill.getDuration());
             newDrill.setOrderIndex(sourceDrill.getOrderIndex());
             newDrill.setDrill(sourceDrill.getDrill());   // preserve Drill FK
@@ -96,21 +95,7 @@ public class SessionService {
         String time = dto.getTime() != null ? dto.getTime() : "00:00";
         int duration = dto.getDuration() != null ? dto.getDuration() : 0;
 
-        if (duration > 0) {
-            List<Session> same = sessionRepository.findActiveByUserAndDate(user.getId(), date);
-            int newStart = toMinutes(time);
-            int newEnd = newStart + duration;
-            for (Session existing : same) {
-                if (existing.getTime() == null || existing.getDuration() == null) continue;
-                int exStart = toMinutes(existing.getTime());
-                int exEnd = exStart + existing.getDuration();
-                if (newStart < exEnd && exStart < newEnd) {
-                    throw new IllegalStateException(
-                        "Session overlaps with \"" + existing.getTitle() + "\" (" +
-                        existing.getTime() + ", " + existing.getDuration() + " min)");
-                }
-            }
-        }
+        assertNoOverlap(user.getId(), date, time, duration, null);
 
         Session session = new Session();
         session.setTitle(dto.getTitle());
@@ -126,7 +111,6 @@ public class SessionService {
             session.setAgeGroup(com.coaching_app.enums.AgeGroup.valueOf(dto.getAgeGroup().toUpperCase()));
         }
 
-        session.setColor(null);
         session.setUser(user);
 
         Session savedSession = sessionRepository.save(session);
@@ -134,7 +118,10 @@ public class SessionService {
         if (dto.getDrills() != null) {
             for (TrainingDrillDTO drillDTO : dto.getDrills()) {
                 TrainingDrill drill = new TrainingDrill();
-                drill.setName(drillDTO.getTitle());
+                if (drillDTO.getDrillId() != null) {
+                    drillRepository.findById(drillDTO.getDrillId())
+                            .ifPresent(drill::setDrill);
+                }
                 drill.setDuration(drillDTO.getDuration());
                 drill.setOrderIndex(drillDTO.getOrderIndex());
                 drill.setSession(savedSession);
@@ -160,22 +147,7 @@ public class SessionService {
         String time = dto.getTime() != null ? dto.getTime() : (session.getTime() != null ? session.getTime() : "00:00");
         int duration = dto.getDuration() != null ? dto.getDuration() : (session.getDuration() != null ? session.getDuration() : 0);
 
-        if (duration > 0) {
-            List<Session> same = sessionRepository.findActiveByUserAndDate(user.getId(), date);
-            int newStart = toMinutes(time);
-            int newEnd = newStart + duration;
-            for (Session existing : same) {
-                if (existing.getId().equals(id)) continue; // skip self
-                if (existing.getTime() == null || existing.getDuration() == null) continue;
-                int exStart = toMinutes(existing.getTime());
-                int exEnd = exStart + existing.getDuration();
-                if (newStart < exEnd && exStart < newEnd) {
-                    throw new IllegalStateException(
-                        "Session overlaps with \"" + existing.getTitle() + "\" (" +
-                        existing.getTime() + ", " + existing.getDuration() + " min)");
-                }
-            }
-        }
+        assertNoOverlap(user.getId(), date, time, duration, id);
 
         if (dto.getTitle() != null) session.setTitle(dto.getTitle());
         session.setDate(date);
@@ -192,7 +164,10 @@ public class SessionService {
             session.getDrills().clear();
             for (TrainingDrillDTO drillDTO : dto.getDrills()) {
                 TrainingDrill drill = new TrainingDrill();
-                drill.setName(drillDTO.getTitle());
+                if (drillDTO.getDrillId() != null) {
+                    drillRepository.findById(drillDTO.getDrillId())
+                            .ifPresent(drill::setDrill);
+                }
                 drill.setDuration(drillDTO.getDuration());
                 drill.setOrderIndex(drillDTO.getOrderIndex());
                 drill.setSession(session);
@@ -219,6 +194,24 @@ public class SessionService {
         sessionRepository.save(session);
     }
 
+    private void assertNoOverlap(Long userId, LocalDate date, String time, int duration, Long excludeId) {
+        if (duration <= 0) return;
+        List<Session> same = sessionRepository.findActiveByUserAndDate(userId, date);
+        int newStart = toMinutes(time);
+        int newEnd = newStart + duration;
+        for (Session existing : same) {
+            if (excludeId != null && existing.getId().equals(excludeId)) continue;
+            if (existing.getTime() == null || existing.getDuration() == null) continue;
+            int exStart = toMinutes(existing.getTime());
+            int exEnd = exStart + existing.getDuration();
+            if (newStart < exEnd && exStart < newEnd) {
+                throw new IllegalStateException(
+                    "Session overlaps with \"" + existing.getTitle() + "\" (" +
+                    existing.getTime() + ", " + existing.getDuration() + " min)");
+            }
+        }
+    }
+
     private void assertEditable(Session session) {
         if (session.isPast()) {
             throw new IllegalStateException("Past sessions are read-only");
@@ -231,6 +224,7 @@ public class SessionService {
         dto.setDate(session.getDate().toString());
         dto.setTime(session.getTime());
         dto.setDuration(session.getDuration());
+        dto.setIntensity(session.getIntensity() != null ? session.getIntensity().toString() : null);
         dto.setReadOnly(session.isPast());
         return dto;
     }
@@ -256,12 +250,15 @@ public class SessionService {
     }
 
     private TrainingDrillDTO convertToTrainingDrillDTO(TrainingDrill drill) {
-        return new TrainingDrillDTO(
-                drill.getId(),
-                drill.getName(),
-                drill.getDuration(),
-                drill.getOrderIndex()
-        );
+        String title = drill.getDrill() != null ? drill.getDrill().getTitle() : null;
+        Long drillId = drill.getDrill() != null ? drill.getDrill().getId() : null;
+        TrainingDrillDTO dto = new TrainingDrillDTO();
+        dto.setId(drill.getId());
+        dto.setDrillId(drillId);
+        dto.setTitle(title);
+        dto.setDuration(drill.getDuration());
+        dto.setOrderIndex(drill.getOrderIndex());
+        return dto;
     }
 
     private int toMinutes(String time) {

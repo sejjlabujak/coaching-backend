@@ -2,7 +2,7 @@ package com.coaching_app.models;
 
 import com.coaching_app.enums.AgeGroup;
 import com.coaching_app.enums.IntensityLevel;
-import com.coaching_app.enums.TrainingColor;
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -36,9 +36,6 @@ public class Session {
 
     @Enumerated(EnumType.STRING)
     private IntensityLevel intensity;
-
-    @Enumerated(EnumType.STRING)
-    private TrainingColor color;
 
     @Enumerated(EnumType.STRING)
     private AgeGroup ageGroup;

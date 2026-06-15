@@ -12,13 +12,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,12 +28,7 @@ public class RecommendationService {
     private final GameRepository gameRepository;
     private final DrillRepository drillRepository;
     private final ObjectMapper objectMapper;
-
-    @Value("${gemini.api.key}")
-    private String geminiApiKey;
-
-    private static final String GEMINI_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
+    private final GeminiClient geminiClient;
 
     // Global fallback cache (keyed to null)
     private List<RecommendationDTO> cachedRecommendations = null;
@@ -113,7 +103,7 @@ public class RecommendationService {
                 .replace("{DRILL_DATA}", drillData);
 
         // 5. Call Gemini API with retry on 429
-        String responseContent = callGeminiWithRetry(prompt, 3);
+        String responseContent = geminiClient.generate(prompt, 3);
         List<RecommendationDTO> result = parseRecommendations(responseContent);
         cachedRecommendations = result;
         cacheTime = LocalDateTime.now();
@@ -140,7 +130,7 @@ public class RecommendationService {
                 .replace("{GAME_DATA}", formatGameData(last4Games))
                 .replace("{DRILL_DATA}", formatDrillData(drills));
 
-        String responseContent = callGeminiWithRetry(prompt, 3);
+        String responseContent = geminiClient.generate(prompt, 3);
         List<RecommendationDTO> result = parseRecommendations(responseContent);
         teamCache.put(teamId, new CachedEntry(result, LocalDateTime.now()));
         return result;
@@ -219,67 +209,6 @@ public class RecommendationService {
         }
 
         return sb.toString();
-    }
-
-    // ── Call Gemini API with retry on 429 ─────────────────────────────────────
-
-    private String callGeminiWithRetry(String prompt, int maxRetries) throws Exception {
-        HttpClient client = HttpClient.newHttpClient();
-
-        String requestBody = objectMapper.writeValueAsString(new java.util.HashMap<>() {{
-            put("contents", List.of(new java.util.HashMap<>() {{
-                put("parts", List.of(new java.util.HashMap<>() {{
-                    put("text", prompt);
-                }}));
-            }}));
-        }});
-
-        int attempt = 0;
-        int waitSeconds = 60;
-
-        while (attempt <= maxRetries) {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(GEMINI_URL + geminiApiKey))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                    .build();
-
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 200) {
-                JsonNode root = objectMapper.readTree(response.body());
-                return root.path("candidates").get(0)
-                        .path("content")
-                        .path("parts").get(0)
-                        .path("text")
-                        .asText();
-            }
-
-            if (response.statusCode() == 429) {
-                // Try to extract retryDelay from response
-                try {
-                    JsonNode errorRoot = objectMapper.readTree(response.body());
-                    JsonNode details = errorRoot.path("error").path("details");
-                    for (JsonNode detail : details) {
-                        if (detail.has("retryDelay")) {
-                            String retryDelay = detail.path("retryDelay").asText();
-                            waitSeconds = Integer.parseInt(retryDelay.replace("s", "")) + 10;
-                        }
-                    }
-                } catch (Exception ignored) {}
-
-                log.warn("Gemini rate limited (429). Waiting {}s before retry {}/{}",
-                        waitSeconds, attempt + 1, maxRetries);
-                Thread.sleep(waitSeconds * 1000L);
-                attempt++;
-                continue;
-            }
-
-            throw new RuntimeException("Gemini API error: HTTP " + response.statusCode()
-                    + " — " + response.body());
-        }
-
-        throw new RuntimeException("Gemini API failed after " + maxRetries + " retries due to rate limiting.");
     }
 
     // ── Parse JSON response into DTOs ─────────────────────────────────────────
