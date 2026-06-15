@@ -34,8 +34,7 @@ public class FibaParserService {
 
     private List<BihGameRefDTO> cachedGameRefs = null;
 
-    // ── Load game list from JSON ──────────────────────────────────────────────
-
+    // ── Load game list from JSON
     private List<BihGameRefDTO> loadGameIdsFromJson() {
         if (cachedGameRefs != null) return cachedGameRefs;
         try {
@@ -52,8 +51,7 @@ public class FibaParserService {
         }
     }
 
-    // ── Import all known games ────────────────────────────────────────────────
-
+    // ── Import all known games
     public List<Game> importAllGames() {
         List<Game> saved = new ArrayList<>();
         for (BihGameRefDTO ref : loadGameIdsFromJson()) {
@@ -68,8 +66,7 @@ public class FibaParserService {
         return saved;
     }
 
-    // ── Import single game ────────────────────────────────────────────────────
-
+    // ── Import single game
     public Game importGame(int fibaId) {
         if (gameRepository.findByFibaGameId(fibaId).isPresent()) {
             log.info("Game {} already exists, skipping", fibaId);
@@ -121,8 +118,7 @@ public class FibaParserService {
         return saved;
     }
 
-    // ── Relink all existing games to Team FKs (backfill) ─────────────────────
-
+    // ── Relink all existing games to Team FKs (backfill)
     public int[] relinkAllGames() {
         List<Game> all = gameRepository.findAll();
         int relinked = 0;
@@ -145,8 +141,7 @@ public class FibaParserService {
         return new int[]{relinked, unmatched};
     }
 
-    // ── Match FIBA name to Team row ───────────────────────────────────────────
-
+    // ── Match FIBA name to Team row
     private void linkTeamRefs(Game game, String homeTeamName, String awayTeamName) {
         game.setHomeTeamRef(resolveTeam(homeTeamName));
         game.setAwayTeamRef(resolveTeam(awayTeamName));
@@ -171,8 +166,7 @@ public class FibaParserService {
         return null;
     }
 
-    // ── Collect player refs ───────────────────────────────────────────────────
-
+    // ── Collect player refs
     private List<PlayerSyncService.FibaPlayerRef> collectPlayerRefs(JsonNode team) {
         List<PlayerSyncService.FibaPlayerRef> refs = new ArrayList<>();
         JsonNode players = team.path("pl");
@@ -194,8 +188,7 @@ public class FibaParserService {
         return refs;
     }
 
-    // ── Parse team performance ────────────────────────────────────────────────
-
+    // ── Parse team performance
     private TeamPerformance parseTeamPerformance(JsonNode team, Game game) {
         TeamPerformance tp = new TeamPerformance();
         tp.setGame(game);
@@ -230,8 +223,7 @@ public class FibaParserService {
         return tp;
     }
 
-    // ── Parse individual players ──────────────────────────────────────────────
-
+    // ── Parse individual players
     private List<IndividualPerformance> parsePlayers(JsonNode team, Game game) {
         List<IndividualPerformance> stats = new ArrayList<>();
         JsonNode players = team.path("pl");

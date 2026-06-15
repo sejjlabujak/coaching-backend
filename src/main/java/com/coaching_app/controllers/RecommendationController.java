@@ -17,7 +17,6 @@ import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/recommendations")
-@CrossOrigin(origins = "http://localhost:4200")
 @RequiredArgsConstructor
 public class RecommendationController {
 

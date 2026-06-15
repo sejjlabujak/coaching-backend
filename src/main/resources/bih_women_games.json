@@ -1,4 +1,168 @@
 [ {
+  "fibaGameId" : 2811471,
+  "homeTeam" : "KK Lavovi",
+  "awayTeam" : "Sloboda"
+}, {
+  "fibaGameId" : 2811516,
+  "homeTeam" : "RMU Banovici",
+  "awayTeam" : "Jedinstvo"
+}, {
+  "fibaGameId" : 2811528,
+  "homeTeam" : "Igman Burch",
+  "awayTeam" : "Vogosca"
+}, {
+  "fibaGameId" : 2811531,
+  "homeTeam" : "KONJIC",
+  "awayTeam" : "Turbina"
+}, {
+  "fibaGameId" : 2811965,
+  "homeTeam" : "KK Mladost Ilijas",
+  "awayTeam" : "KK Orlovik U18"
+}, {
+  "fibaGameId" : 2811969,
+  "homeTeam" : "Celik",
+  "awayTeam" : "LOKOMOTIVA J&amp;A"
+}, {
+  "fibaGameId" : 2811970,
+  "homeTeam" : "ZKK Konjic",
+  "awayTeam" : "Jedinstvo"
+}, {
+  "fibaGameId" : 2811971,
+  "homeTeam" : "Igman",
+  "awayTeam" : "KK Lavovi"
+}, {
+  "fibaGameId" : 2811972,
+  "homeTeam" : "KZK Celik BH Telecom",
+  "awayTeam" : "KK Jumper Taurus"
+}, {
+  "fibaGameId" : 2811973,
+  "homeTeam" : "Leotar 03",
+  "awayTeam" : "Orlovi"
+}, {
+  "fibaGameId" : 2811974,
+  "homeTeam" : "RMU Banovici",
+  "awayTeam" : "OKK Zenica"
+}, {
+  "fibaGameId" : 2811975,
+  "homeTeam" : "Play Off",
+  "awayTeam" : "Mladi Krajisnik"
+}, {
+  "fibaGameId" : 2812095,
+  "homeTeam" : "KK Orlovik",
+  "awayTeam" : "OKK Slavija 1996"
+}, {
+  "fibaGameId" : 2812098,
+  "homeTeam" : "HKK Siroki TT Kabeli",
+  "awayTeam" : "KK Leotar"
+}, {
+  "fibaGameId" : 2812144,
+  "homeTeam" : "GMi Konjice",
+  "awayTeam" : "Plama pur Ilirska Bistrica "
+}, {
+  "fibaGameId" : 2812418,
+  "homeTeam" : "KOÅ  U16",
+  "awayTeam" : "IGMAN RICHMOND PARK U16"
+}, {
+  "fibaGameId" : 2812423,
+  "homeTeam" : "BOSNA U18",
+  "awayTeam" : "IGMAN RICHMOND PARK U18"
+}, {
+  "fibaGameId" : 2812424,
+  "homeTeam" : "IGMAN IST. ILIDÅ½A WU14",
+  "awayTeam" : "REALWAY WU13"
+}, {
+  "fibaGameId" : 2812425,
+  "homeTeam" : "IGMAN IST. ILIDÅ½A U16",
+  "awayTeam" : "REALWAY WU16"
+}, {
+  "fibaGameId" : 2812499,
+  "homeTeam" : "G-STARS",
+  "awayTeam" : "Celik Akademija"
+}, {
+  "fibaGameId" : 2813137,
+  "homeTeam" : "KK Leotar",
+  "awayTeam" : "Zrinjski 1992"
+}, {
+  "fibaGameId" : 2813139,
+  "homeTeam" : "KK Radnicki",
+  "awayTeam" : "KK Orlovik"
+}, {
+  "fibaGameId" : 2814052,
+  "homeTeam" : "GBI van Dijk Grasshoppers VSE-1",
+  "awayTeam" : "Jolly Jumpers VSE-1"
+}, {
+  "fibaGameId" : 2814161,
+  "homeTeam" : "FENIKS",
+  "awayTeam" : "KK Lavovi"
+}, {
+  "fibaGameId" : 2814385,
+  "homeTeam" : "RMU Banovici",
+  "awayTeam" : "KK Jumper Taurus"
+}, {
+  "fibaGameId" : 2814538,
+  "homeTeam" : "BoÅ¡njak",
+  "awayTeam" : "Igman Burch"
+}, {
+  "fibaGameId" : 2814539,
+  "homeTeam" : "Travnik",
+  "awayTeam" : "KONJIC"
+}, {
+  "fibaGameId" : 2814884,
+  "homeTeam" : "Play Off",
+  "awayTeam" : "ZKK Konjic"
+}, {
+  "fibaGameId" : 2814885,
+  "homeTeam" : "Mladi Krajisnik",
+  "awayTeam" : "RMU Banovici"
+}, {
+  "fibaGameId" : 2814886,
+  "homeTeam" : "OKK Zenica",
+  "awayTeam" : "Leotar 03"
+}, {
+  "fibaGameId" : 2814887,
+  "homeTeam" : "Orlovi",
+  "awayTeam" : "KZK Celik BH Telecom"
+}, {
+  "fibaGameId" : 2814888,
+  "homeTeam" : "Igman",
+  "awayTeam" : "KK Jumper Taurus"
+}, {
+  "fibaGameId" : 2814889,
+  "homeTeam" : "KK Lavovi",
+  "awayTeam" : "Jedinstvo"
+}, {
+  "fibaGameId" : 2814891,
+  "homeTeam" : "KK Orlovik",
+  "awayTeam" : "KK Donji Vakuf Promo"
+}, {
+  "fibaGameId" : 2814892,
+  "homeTeam" : "Borac",
+  "awayTeam" : "KK Leotar"
+}, {
+  "fibaGameId" : 2814965,
+  "homeTeam" : "KK Orlovik U18",
+  "awayTeam" : "KK Vukovi"
+}, {
+  "fibaGameId" : 2815186,
+  "homeTeam" : "PLAY OFF WU14",
+  "awayTeam" : "IGMAN IST. ILIDÅ½A WU14"
+}, {
+  "fibaGameId" : 2815188,
+  "homeTeam" : "PLAY OFF WU16",
+  "awayTeam" : "IGMAN IST. ILIDÅ½A U16"
+}, {
+  "fibaGameId" : 2815479,
+  "homeTeam" : "IGMAN RICHMOND PARK U16",
+  "awayTeam" : "REALWAY U16"
+}, {
+  "fibaGameId" : 2817104,
+  "homeTeam" : "KK Lavovi",
+  "awayTeam" : "Kozara"
+}, {
+  "fibaGameId" : 2817375,
+  "homeTeam" : "KK Jumper Taurus",
+  "awayTeam" : "Play Off"
+}, {
   "fibaGameId" : 2818038,
   "homeTeam" : "REALWAY",
   "awayTeam" : "Celik"

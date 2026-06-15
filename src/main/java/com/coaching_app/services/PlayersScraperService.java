@@ -35,6 +35,7 @@ public class PlayersScraperService {
         return scrapeRoster(DEFAULT_ROSTER_URL);
     }
 
+
     public List<PlayerDTO> scrapeRoster(String rosterUrl) {
         List<PlayerDTO> players = new ArrayList<>();
 
@@ -73,7 +74,6 @@ public class PlayersScraperService {
         log.info("Scraped {} players from Eurobasket roster", players.size());
         return players;
     }
-
 
     public void scrapeProfile(PlayerDTO dto) {
         if (dto.getProfileUrl() == null) return;

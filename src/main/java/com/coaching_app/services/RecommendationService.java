@@ -79,37 +79,6 @@ public class RecommendationService {
             ]
             """;
 
-    public List<RecommendationDTO> getRecommendations() throws Exception {
-        if (isCacheValid()) {
-            log.info("Returning cached recommendations");
-            return cachedRecommendations;
-        }
-        // 1. Fetch last 4 games with TeamPerformance
-        List<Game> last4Games = gameRepository.findTop4ByOrderByDateDesc();
-        if (last4Games.isEmpty()) {
-            throw new RuntimeException("No games found in the database.");
-        }
-
-        // 2. Fetch all non-deleted drills
-        List<Drill> drills = drillRepository.findByDeletedFalse();
-
-        // 3. Format data for the prompt
-        String gameData = formatGameData(last4Games);
-        String drillData = formatDrillData(drills);
-
-        // 4. Build the prompt
-        String prompt = PROMPT_TEMPLATE
-                .replace("{GAME_DATA}", gameData)
-                .replace("{DRILL_DATA}", drillData);
-
-        // 5. Call Gemini API with retry on 429
-        String responseContent = geminiClient.generate(prompt, 3);
-        List<RecommendationDTO> result = parseRecommendations(responseContent);
-        cachedRecommendations = result;
-        cacheTime = LocalDateTime.now();
-        return result;
-    }
-
     public List<RecommendationDTO> getRecommendationsForCoach(User coach) throws Exception {
         Long teamId = coach.getTeam() != null ? coach.getTeam().getId() : null;
         if (teamId == null) throw new RuntimeException("Coach has no team assigned");
@@ -142,12 +111,7 @@ public class RecommendationService {
         teamCache.clear();
     }
 
-    public boolean isCacheValid() {
-        return cachedRecommendations != null
-                && cacheTime != null
-                && cacheTime.plusHours(CACHE_HOURS).isAfter(LocalDateTime.now());
-    }
-    // ── Format last 4 games as readable text ──────────────────────────────────
+    // ── Format last 4 games as readable text
     private String formatGameData(List<Game> games) {
         StringBuilder sb = new StringBuilder();
         int gameNum = 1;
@@ -186,8 +150,7 @@ public class RecommendationService {
         return sb.toString();
     }
 
-    // ── Format drills as readable text ────────────────────────────────────────
-
+    // ── Format drills as readable text
     private String formatDrillData(List<Drill> drills) {
         StringBuilder sb = new StringBuilder();
 
@@ -211,8 +174,7 @@ public class RecommendationService {
         return sb.toString();
     }
 
-    // ── Parse JSON response into DTOs ─────────────────────────────────────────
-
+    // ── Parse JSON response into DTOs
     private List<RecommendationDTO> parseRecommendations(String rawContent) throws Exception {
         // Strip markdown fences if present
         String cleaned = rawContent.replaceAll("```json|```", "").trim();
