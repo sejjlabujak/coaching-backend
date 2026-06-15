@@ -9,6 +9,7 @@ import com.coaching_app.services.SessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,8 +23,8 @@ public class SessionController {
 
     private final SessionService sessionService;
 
-    private User currentUser() {
-        return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    private Long currentUserId() {
+        return ((User) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getId();
     }
 
     // GET /api/sessions?month=4
@@ -31,17 +32,13 @@ public class SessionController {
     public ResponseEntity<List<SessionDTO>> getSessions(
             @RequestParam(required = false) Integer month,
             @RequestParam(required = false) Integer year) {
-        return ResponseEntity.ok(sessionService.getSessions(month, year, currentUser()));
+        return ResponseEntity.ok(sessionService.getSessions(month, year, currentUserId()));
     }
 
-    // GET /api/session/{id}
+    // GET /api/sessions/{id}
     @GetMapping("/{id}")
     public ResponseEntity<SessionDetailDTO> getSessionById(@PathVariable Long id) {
-        try {
-            return ResponseEntity.ok(sessionService.getSessionById(id));
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+        return ResponseEntity.ok(sessionService.getSessionById(id));
     }
 
     // POST /api/session/{id}/reuse
@@ -50,7 +47,7 @@ public class SessionController {
             @PathVariable Long id,
             @RequestBody(required = false) ReuseSessionDTO dto) {
         String newDate = (dto != null && dto.getNewDate() != null) ? dto.getNewDate() : null;
-        Long newSessionId = sessionService.reuseSession(id, newDate, currentUser());
+        Long newSessionId = sessionService.reuseSession(id, newDate, currentUserId());
         return ResponseEntity.ok(Map.of("newSessionId", newSessionId, "status", "Copied"));
     }
 
@@ -59,7 +56,7 @@ public class SessionController {
     public ResponseEntity<Map<String, Object>> createSession(
             @RequestBody SessionDetailDTO dto) {
         try {
-            Long newId = sessionService.createSession(dto, currentUser());
+            Long newId = sessionService.createSession(dto, currentUserId());
             return ResponseEntity.ok(Map.of("id", newId, "status", "Saved"));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
@@ -72,7 +69,7 @@ public class SessionController {
             @PathVariable Long id,
             @RequestBody UpdateSessionDTO dto) {
         try {
-            Long updatedId = sessionService.updateSession(id, dto, currentUser());
+            Long updatedId = sessionService.updateSession(id, dto, currentUserId());
             return ResponseEntity.ok(Map.of("id", updatedId, "status", "Updated"));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(400).body(Map.of("error", e.getMessage()));

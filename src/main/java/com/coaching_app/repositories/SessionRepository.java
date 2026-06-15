@@ -25,7 +25,7 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
             @Param("year") Integer year
     );
 
-    @Query("SELECT s FROM Session s WHERE s.id = :id AND s.deletedAt IS NULL")
+    @Query(value = "SELECT * FROM sessions WHERE id = :id AND deleted_at IS NULL", nativeQuery = true)
     Optional<Session> findActiveById(@Param("id") Long id);
 
     @Query("SELECT s FROM Session s WHERE s.deletedAt IS NULL AND s.user.id = :userId AND s.date = :date")
