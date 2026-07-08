@@ -35,8 +35,12 @@ public class DrillController {
     public ResponseEntity<Map<String, Object>> createDrill(
             @RequestBody DrillDTO dto,
             @AuthenticationPrincipal User user) {
-        Long newId = drillService.createDrill(dto, user);
-        return ResponseEntity.ok(Map.of("id", newId, "status", "Saved"));
+        try {
+            Long newId = drillService.createDrill(dto, user);
+            return ResponseEntity.ok(Map.of("id", newId, "status", "Saved"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PutMapping("/{id}")

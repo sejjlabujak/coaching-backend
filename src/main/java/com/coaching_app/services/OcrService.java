@@ -39,7 +39,6 @@ public class OcrService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-
     public List<OcrConfirmDTO> processBytesAndReturn(byte[] bytes, String contentType) {
         try {
             String rawText;
@@ -56,8 +55,8 @@ public class OcrService {
             throw new RuntimeException("OCR processing failed: " + e.getMessage(), e);
         }
     }
-    // Parallel PDF extraction
 
+    // Parallel PDF extraction
     private String extractTextFromPdfParallel(PDDocument document)
             throws InterruptedException, ExecutionException {
 
@@ -88,7 +87,6 @@ public class OcrService {
     }
 
     // Extract all drills from chunked text
-
     private List<OcrConfirmDTO> extractAllDrillsWithGemini(String rawText) throws Exception {
 
         List<String> chunks = splitIntoChunks(rawText, 20000, 1000);
@@ -219,7 +217,6 @@ public class OcrService {
         JsonNode n = node.path(field);
         return (n.isNull() || n.isMissingNode()) ? null : n.asText();
     }
-
 
     private Tesseract buildTesseract() {
         Tesseract t = new Tesseract();

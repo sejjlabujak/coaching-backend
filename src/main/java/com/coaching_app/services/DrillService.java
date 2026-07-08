@@ -73,6 +73,9 @@ public class DrillService {
     }
 
     public Long saveDrillFromOcr(OcrConfirmDTO dto, User user) {
+        if (drillRepository.existsByTitleIgnoreCaseAndUserIdAndDeletedFalse(dto.getTitle(), user.getId())) {
+            throw new IllegalArgumentException("Drill already exists: " + dto.getTitle());
+        }
         Drill drill = new Drill();
         drill.setTitle(dto.getTitle());
         drill.setDescription(dto.getDescription());
@@ -109,6 +112,9 @@ public class DrillService {
     }
 
     public Long createDrill(DrillDTO dto, User user) {
+        if (drillRepository.existsByTitleIgnoreCaseAndUserIdAndDeletedFalse(dto.getTitle(), user.getId())) {
+            throw new IllegalArgumentException("A drill with this title already exists.");
+        }
         Drill drill = new Drill();
         drill.setTitle(dto.getTitle());
         drill.setDescription(dto.getDescription());
