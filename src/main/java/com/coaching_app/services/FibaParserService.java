@@ -111,10 +111,10 @@ public class FibaParserService {
 
         linkTeamRefs(saved, team1Name, team2Name);
 
-        List<PlayerSyncService.FibaPlayerRef> fibaPlayers = collectPlayerRefs(team1);
-        if (!fibaPlayers.isEmpty()) {
-            playerSyncService.syncPlayersFromGame(fibaPlayers);
-        }
+//        List<PlayerSyncService.FibaPlayerRef> fibaPlayers = collectPlayerRefs(team1);
+//        if (!fibaPlayers.isEmpty()) {
+//            playerSyncService.syncPlayersFromGame(fibaPlayers);
+//        }
         return saved;
     }
 

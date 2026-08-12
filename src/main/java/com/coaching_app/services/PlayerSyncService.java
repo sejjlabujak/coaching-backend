@@ -21,72 +21,69 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PlayerSyncService {
 
-    private final PlayersScraperService scraperService;
+  //  private final PlayersScraperService scraperService;
     private final PlayerRepository playerRepository;
     private final ImageRepository imageRepository;
     private final PlayerStatsRepository individualStatRepository;
 
 
-    public void syncPlayersFromGame(List<FibaPlayerRef> fibaPlayers) {
-        syncPlayersFromGame(fibaPlayers, null);
-    }
+//    public void syncPlayersFromGame(List<FibaPlayerRef> fibaPlayers) {
+//        syncPlayersFromGame(fibaPlayers, null);
+//    }
 
     //Syncs players from FibaParserService.importGame
-    public void syncPlayersFromGame(List<FibaPlayerRef> fibaPlayers, User coachUser) {
-        log.info("Starting player sync for {} FIBA players", fibaPlayers.size());
-
-        String rosterUrl = (coachUser != null && coachUser.getTeam() != null)
-                ? coachUser.getTeam().getRosterUrl()
-                : null;
-        List<PlayerDTO> roster = rosterUrl != null
-                ? scraperService.scrapeRoster(rosterUrl)
-                : scraperService.scrapeRoster();
-
-        if (roster.isEmpty()) {
-            log.warn("Eurobasket roster is empty — skipping player sync");
-            return;
-        }
-
-        for (FibaPlayerRef fibaPlayer : fibaPlayers) {
-            try {
-                PlayerDTO match = findBestMatch(fibaPlayer, roster);
-                if (match == null) {
-                    log.debug("No Eurobasket match for FIBA player: {} {}",
-                            fibaPlayer.firstName(), fibaPlayer.familyName());
-                    continue;
-                }
-
-                scraperService.scrapeProfile(match);
-                upsertPlayer(fibaPlayer, match, coachUser);
-
-            } catch (Exception e) {
-                log.warn("Error syncing player {} {}: {}",
-                        fibaPlayer.firstName(), fibaPlayer.familyName(), e.getMessage());
-            }
-        }
-
-        log.info("Player sync complete");
-    }
+//    public void syncPlayersFromGame(List<FibaPlayerRef> fibaPlayers, User coachUser) {
+//        log.info("Starting player sync for {} FIBA players", fibaPlayers.size());
+//
+//        String rosterUrl = (coachUser != null && coachUser.getTeam() != null)
+//                ? coachUser.getTeam().getRosterUrl()
+//                : null;
+//      z
+//        if (roster.isEmpty()) {
+//            log.warn("Eurobasket roster is empty — skipping player sync");
+//            return;
+//        }
+//
+//        for (FibaPlayerRef fibaPlayer : fibaPlayers) {
+//            try {
+//                PlayerDTO match = findBestMatch(fibaPlayer, roster);
+//                if (match == null) {
+//                    log.debug("No Eurobasket match for FIBA player: {} {}",
+//                            fibaPlayer.firstName(), fibaPlayer.familyName());
+//                    continue;
+//                }
+//
+//                scraperService.scrapeProfile(match);
+//                upsertPlayer(fibaPlayer, match, coachUser);
+//
+//            } catch (Exception e) {
+//                log.warn("Error syncing player {} {}: {}",
+//                        fibaPlayer.firstName(), fibaPlayer.familyName(), e.getMessage());
+//            }
+//        }
+//
+//        log.info("Player sync complete");
+//    }
 
     //Triggered when coaches create account
     @Transactional
-    public void syncRosterForCoach(User coachUser) {
-        if (coachUser == null || coachUser.getTeam() == null || coachUser.getTeam().getRosterUrl() == null) {
-            log.warn("Cannot sync roster: coach or coach's team is not set");
-            return;
-        }
-
-        List<PlayerDTO> roster = scraperService.scrapeRoster(coachUser.getTeam().getRosterUrl());
-        List<FibaPlayerRef> refs = roster.stream()
-                .filter(dto -> dto.getFullName() != null && dto.getFullName().contains(" "))
-                .map(dto -> {
-                    String[] parts = dto.getFullName().trim().split("\\s+", 2);
-                    return new FibaPlayerRef(parts[0], parts[1], null);
-                })
-                .toList();
-
-        syncPlayersFromGame(refs, coachUser);
-    }
+//    public void syncRosterForCoach(User coachUser) {
+//        if (coachUser == null || coachUser.getTeam() == null || coachUser.getTeam().getRosterUrl() == null) {
+//            log.warn("Cannot sync roster: coach or coach's team is not set");
+//            return;
+//        }
+//
+//        List<PlayerDTO> roster = scraperService.scrapeRoster(coachUser.getTeam().getRosterUrl());
+//        List<FibaPlayerRef> refs = roster.stream()
+//                .filter(dto -> dto.getFullName() != null && dto.getFullName().contains(" "))
+//                .map(dto -> {
+//                    String[] parts = dto.getFullName().trim().split("\\s+", 2);
+//                    return new FibaPlayerRef(parts[0], parts[1], null);
+//                })
+//                .toList();
+//
+//        syncPlayersFromGame(refs, coachUser);
+//    }
 
     // ── Matching ──────────────────────────────────────────────────────────────
     private PlayerDTO findBestMatch(FibaPlayerRef fiba, List<PlayerDTO> roster) {

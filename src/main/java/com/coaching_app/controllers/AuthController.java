@@ -60,7 +60,7 @@ public class AuthController {
         user.setMustChangePassword(false);
         userRepository.save(user);
 
-        playerSyncService.syncRosterForCoach(user);
+//        playerSyncService.syncRosterForCoach(user);
 
         return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
     }
